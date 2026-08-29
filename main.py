@@ -12,3 +12,12 @@ pdf_files = [
 ]
 
 print("pdf_files:", pdf_files)
+
+writer = PdfWriter()
+
+for pdf_file in pdf_files: 
+    writer.append(pdf_file)
+
+writer.write(output_folder / "merged.pdf")
+
+print("PDF files merged successfully into 'merged.pdf' in the output folder.")
