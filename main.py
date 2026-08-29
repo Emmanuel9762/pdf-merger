@@ -1,10 +1,9 @@
+from pathlib import Path
 from pypdf import PdfWriter
 
-writer = PdfWriter()
+input_folder = Path("input")
+output_folder = Path("output")
 
-writer.append("first.pdf")
-writer.append("second.pdf")
+pdf_files = list(input_folder.glob("*.pdf"))
 
-writer.write("merged.pdf")
-
-print("PDFs merged successfully!")
+print(pdf_files)
