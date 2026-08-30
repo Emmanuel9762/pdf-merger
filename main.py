@@ -11,13 +11,19 @@ pdf_files = [
     if file.is_file() and file.suffix.lower() == ".pdf"
 ]
 
-print("pdf_files:", pdf_files)
+print("PDFs found:")
 
 writer = PdfWriter()
 
 for pdf_file in pdf_files: 
     writer.append(pdf_file)
 
-writer.write(output_folder / "merged.pdf")
+output_file = output_folder / "merged.pdf"
 
-print("PDF files merged successfully into 'merged.pdf' in the output folder.")
+print(pdf_files)
+
+writer.write(output_file)
+
+print(f"\nPDFs merged successfully!")
+
+print(f"Output: {output_file}")
