@@ -68,8 +68,13 @@ writer = PdfWriter()
 for pdf_file in selected_files: 
     writer.append(pdf_file)
 
+# Get output file name 
+output_name = input("\nEnter output filename: ")
 
-output_file = output_folder / "merged.pdf"
+if not output_name.lower().endswith(".pdf"):
+    output_name += ".pdf"
+
+output_file = output_folder / output_name
 
 print(pdf_files)
 
