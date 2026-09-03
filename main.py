@@ -76,6 +76,12 @@ if not output_name.lower().endswith(".pdf"):
 
 output_file = output_folder / output_name
 
+if output_file.exists():
+    overwrite = input(f"{output_file} already exists. Overwrite? (y/n): ")
+    if overwrite.lower() != "y":
+        print("Operation cancelled.")
+        exit()
+
 print(pdf_files)
 
 # Save the final merged file
