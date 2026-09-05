@@ -74,8 +74,14 @@ def main():
     output_file = output_folder / output_name
 
     if output_file.exists():
-        print(f"File already exists: {output_file}")
-        exit()
+        choice = input(
+            f"\nFile already exists: {output_file}\n"
+            "Overwrite it? (y/n): "
+        ).lower()
+
+        if choice != "y":
+            print("Merge cancelled.")
+            exit()
 
     merge_pdfs(selected_files, output_file)
 
