@@ -15,27 +15,28 @@ def get_merge_order(pdf_files):
     for index, pdf_file in enumerate(pdf_files, start=1):
         print(f"{index}. {pdf_file.name}")
 
-    order = input("\nEnter the order you want (e.g. 1 2 3): ")
+    while True:
+        order = input("\nEnter the order you want (e.g. 1 2 3): ")
 
-    try:
-        order = [int(number) for number in order.split()]
-    except ValueError:
-        print("Invalid input. Please enter numbers only.")
-        return None
+        try:
+            order = [int(number) for number in order.split()]
+        except ValueError:
+            print("Invalid input. Please enter numbers only.")
+            continue
 
-    if any(index < 1 or index > len(pdf_files) for index in order):
-        print("Invalid file number.")
-        return None
+        if any(index < 1 or index > len(pdf_files) for index in order):
+            print(f"Enter numbers between 1 and {len(pdf_files)}.")
+            continue
 
-    if len(order) != len(pdf_files):
-        print("Please select every PDF exactly once.")
-        return None
+        if len(order) != len(pdf_files):
+            print(f"Please enter all {len(pdf_files)} PDF numbers.")
+            continue
 
-    if len(set(order)) != len(order):
-        print("Duplicate file numbers are not allowed.")
-        return None
+        if len(set(order)) != len(order):
+            print("Duplicate file numbers are not allowed.")
+            continue
 
-    return [pdf_files[index - 1] for index in order]
+        return [pdf_files[index - 1] for index in order]
 
 
 def merge_pdfs(pdf_files, output_file):
@@ -64,9 +65,6 @@ def main():
         return
 
     selected_files = get_merge_order(pdf_files)
-
-    if selected_files is None:
-        return
 
     print("\nMerge order:")
 
