@@ -39,6 +39,32 @@ def get_merge_order(pdf_files):
         return [pdf_files[index - 1] for index in order]
 
 
+def get_output_file(output_folder):
+    while True:
+        output_name = input("\nEnter output filename: ").strip()
+
+        if not output_name:
+            print("Filename cannot be empty.")
+            continue
+
+        if not output_name.lower().endswith(".pdf"):
+            output_name += ".pdf"
+
+        output_file = output_folder / output_name
+
+        if output_file.exists():
+            choice = input(
+                f"\nFile already exists: {output_file}\n"
+                "Overwrite it? (y/n): "
+            ).lower()
+
+            if choice != "y":
+                print("Merge cancelled.")
+                continue
+
+        return output_file
+
+
 def merge_pdfs(pdf_files, output_file):
     writer = PdfWriter()
 
@@ -71,30 +97,7 @@ def main():
     for index, pdf_file in enumerate(selected_files, start=1):
         print(f"{index}. {pdf_file.name}")
 
-    # Get output filename
-    while True:
-        output_name = input("\nEnter output filename: ").strip()
-
-        if not output_name:
-            print("Filename cannot be empty.")
-            continue
-
-        if not output_name.lower().endswith(".pdf"):
-            output_name += ".pdf"
-
-        break
-
-    output_file = output_folder / output_name
-
-    if output_file.exists():
-        choice = input(
-            f"\nFile already exists: {output_file}\n"
-            "Overwrite it? (y/n): "
-        ).lower()
-
-        if choice != "y":
-            print("Merge cancelled.")
-            return
+    output_file = get_output_file(output_folder)
 
     merge_pdfs(selected_files, output_file)
 
