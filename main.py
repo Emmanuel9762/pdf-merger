@@ -21,19 +21,19 @@ def get_merge_order(pdf_files):
         order = [int(number) for number in order.split()]
     except ValueError:
         print("Invalid input. Please enter numbers only.")
-        exit()
+        return None
 
     if any(index < 1 or index > len(pdf_files) for index in order):
         print("Invalid file number.")
-        exit()
+        return None
 
     if len(order) != len(pdf_files):
         print("Please select every PDF exactly once.")
-        exit()
+        return None
 
     if len(set(order)) != len(order):
         print("Duplicate file numbers are not allowed.")
-        exit()
+        return None
 
     return [pdf_files[index - 1] for index in order]
 
@@ -51,15 +51,22 @@ def main():
     input_folder = Path("input")
     output_folder = Path("output")
 
+    if not input_folder.exists():
+        print("Input folder not found.")
+        return
+
     output_folder.mkdir(exist_ok=True)
 
     pdf_files = find_pdfs(input_folder)
 
     if not pdf_files:
         print("No PDF files found in the input folder.")
-        exit()
+        return
 
     selected_files = get_merge_order(pdf_files)
+
+    if selected_files is None:
+        return
 
     print("\nMerge order:")
 
@@ -81,7 +88,7 @@ def main():
 
         if choice != "y":
             print("Merge cancelled.")
-            exit()
+            return
 
     merge_pdfs(selected_files, output_file)
 
