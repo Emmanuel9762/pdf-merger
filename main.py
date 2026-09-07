@@ -71,10 +71,18 @@ def main():
     for index, pdf_file in enumerate(selected_files, start=1):
         print(f"{index}. {pdf_file.name}")
 
-    output_name = input("\nEnter output filename: ")
+    # Get output filename
+    while True:
+        output_name = input("\nEnter output filename: ").strip()
 
-    if not output_name.lower().endswith(".pdf"):
-        output_name += ".pdf"
+        if not output_name:
+            print("Filename cannot be empty.")
+            continue
+
+        if not output_name.lower().endswith(".pdf"):
+            output_name += ".pdf"
+
+        break
 
     output_file = output_folder / output_name
 
