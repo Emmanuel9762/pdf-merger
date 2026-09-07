@@ -1,5 +1,23 @@
+import argparse
 from pathlib import Path
 from pypdf import PdfWriter
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Merge PDF files.")
+
+    parser.add_argument(
+        "--input",
+        default="input",
+        help="Folder containing PDF files."
+    )
+
+    parser.add_argument(
+        "--output",
+        help="Output PDF file."
+    )
+
+    return parser.parse_args()
 
 
 def find_pdfs(input_folder):
@@ -75,7 +93,9 @@ def merge_pdfs(pdf_files, output_file):
 
 
 def main():
-    input_folder = Path("input")
+    args = parse_args()
+
+    input_folder = Path(args.input)
     output_folder = Path("output")
 
     if not input_folder.exists():
@@ -97,7 +117,25 @@ def main():
     for index, pdf_file in enumerate(selected_files, start=1):
         print(f"{index}. {pdf_file.name}")
 
-    output_file = get_output_file(output_folder)
+    if args.output:
+        output_file = Path(args.output)
+
+        if not output_file.suffix:
+            output_file = output_file.with_suffix(".pdf")
+
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        if output_file.exists():
+            choice = input(
+                f"\nFile already exists: {output_file}\n"
+                "Overwrite it? (y/n): "
+            ).lower()
+
+            if choice != "y":
+                print("Merge cancelled.")
+                return
+    else:
+        output_file = get_output_file(output_folder)
 
     merge_pdfs(selected_files, output_file)
 
