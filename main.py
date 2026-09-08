@@ -140,12 +140,13 @@ def merge_pdfs(pdf_files, output_file):
         for pdf_file in pdf_files:
             writer.append(pdf_file)
 
+        total_pages = len(writer.pages)
         writer.write(output_file)
     except Exception as error:
         print(f"Merge failed: {error}")
-        return False
+        return None
 
-    return True
+    return total_pages
 
 
 def main():
@@ -184,10 +185,14 @@ def main():
     if output_file is None:
         return
 
-    if not merge_pdfs(selected_files, output_file):
+    total_pages = merge_pdfs(selected_files, output_file)
+
+    if total_pages is None:
         return
 
     print("\nPDFs merged successfully!")
+    print(f"Files merged: {len(selected_files)}")
+    print(f"Total pages: {total_pages}")
     print(f"Output: {output_file}")
 
 
