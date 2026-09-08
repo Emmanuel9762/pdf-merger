@@ -86,7 +86,29 @@ def get_merge_order(pdf_files):
         return [pdf_files[index - 1] for index in order]
 
 
-def get_output_file(output_folder):
+def get_output_file(output_path=None):
+    if output_path:
+        output_file = Path(output_path)
+
+        if not output_file.suffix:
+            output_file = output_file.with_suffix(".pdf")
+
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        if output_file.exists():
+            choice = input(
+                f"\nFile already exists: {output_file}\n"
+                "Overwrite it? (y/n): "
+            ).lower()
+
+            if choice != "y":
+                print("Merge cancelled.")
+                return None
+
+        return output_file
+
+    output_folder = Path("output")
+
     while True:
         output_name = input("\nEnter output filename: ").strip()
 
@@ -124,9 +146,6 @@ def main():
     args = parse_args()
 
     input_folder = Path(args.input)
-    output_folder = Path("output")
-
-    output_folder.mkdir(exist_ok=True)
 
     if args.files:
         pdf_files = get_cli_files(args.files)
@@ -154,25 +173,10 @@ def main():
     for index, pdf_file in enumerate(selected_files, start=1):
         print(f"{index}. {pdf_file.name}")
 
-    if args.output:
-        output_file = Path(args.output)
+    output_file = get_output_file(args.output)
 
-        if not output_file.suffix:
-            output_file = output_file.with_suffix(".pdf")
-
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-
-        if output_file.exists():
-            choice = input(
-                f"\nFile already exists: {output_file}\n"
-                "Overwrite it? (y/n): "
-            ).lower()
-
-            if choice != "y":
-                print("Merge cancelled.")
-                return
-    else:
-        output_file = get_output_file(output_folder)
+    if output_file is None:
+        return
 
     merge_pdfs(selected_files, output_file)
 
