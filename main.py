@@ -144,7 +144,10 @@ def main():
             print("No PDF files found in the input folder.")
             return
 
-    selected_files = get_merge_order(pdf_files)
+    if args.files:
+        selected_files = pdf_files
+    else:
+        selected_files = get_merge_order(pdf_files)
 
     print("\nMerge order:")
 
