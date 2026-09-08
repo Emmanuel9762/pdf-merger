@@ -7,6 +7,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Merge PDF files.")
 
     parser.add_argument(
+        "files",
+        nargs="*",
+        help="PDF files to merge."
+    )
+
+    parser.add_argument(
         "--input",
         default="input",
         help="Folder containing PDF files."
@@ -25,6 +31,29 @@ def find_pdfs(input_folder):
         file for file in input_folder.iterdir()
         if file.is_file() and file.suffix.lower() == ".pdf"
     ]
+
+
+def get_cli_files(file_paths):
+    pdf_files = []
+
+    for file_path in file_paths:
+        pdf_file = Path(file_path)
+
+        if not pdf_file.exists():
+            print(f"File not found: {pdf_file}")
+            return None
+
+        if not pdf_file.is_file():
+            print(f"Not a file: {pdf_file}")
+            return None
+
+        if pdf_file.suffix.lower() != ".pdf":
+            print(f"Not a PDF file: {pdf_file}")
+            return None
+
+        pdf_files.append(pdf_file)
+
+    return pdf_files
 
 
 def get_merge_order(pdf_files):
@@ -77,7 +106,6 @@ def get_output_file(output_folder):
             ).lower()
 
             if choice != "y":
-                print("Merge cancelled.")
                 continue
 
         return output_file
@@ -98,17 +126,23 @@ def main():
     input_folder = Path(args.input)
     output_folder = Path("output")
 
-    if not input_folder.exists():
-        print("Input folder not found.")
-        return
-
     output_folder.mkdir(exist_ok=True)
 
-    pdf_files = find_pdfs(input_folder)
+    if args.files:
+        pdf_files = get_cli_files(args.files)
 
-    if not pdf_files:
-        print("No PDF files found in the input folder.")
-        return
+        if pdf_files is None:
+            return
+    else:
+        if not input_folder.exists():
+            print("Input folder not found.")
+            return
+
+        pdf_files = find_pdfs(input_folder)
+
+        if not pdf_files:
+            print("No PDF files found in the input folder.")
+            return
 
     selected_files = get_merge_order(pdf_files)
 
