@@ -136,10 +136,16 @@ def get_output_file(output_path=None):
 def merge_pdfs(pdf_files, output_file):
     writer = PdfWriter()
 
-    for pdf_file in pdf_files:
-        writer.append(pdf_file)
+    try:
+        for pdf_file in pdf_files:
+            writer.append(pdf_file)
 
-    writer.write(output_file)
+        writer.write(output_file)
+    except Exception as error:
+        print(f"Merge failed: {error}")
+        return False
+
+    return True
 
 
 def main():
@@ -178,7 +184,8 @@ def main():
     if output_file is None:
         return
 
-    merge_pdfs(selected_files, output_file)
+    if not merge_pdfs(selected_files, output_file):
+        return
 
     print("\nPDFs merged successfully!")
     print(f"Output: {output_file}")
