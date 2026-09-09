@@ -138,12 +138,15 @@ def merge_pdfs(pdf_files, output_file):
 
     try:
         for pdf_file in pdf_files:
+            print(f"Processing: {pdf_file.name}")
             writer.append(pdf_file)
 
         total_pages = len(writer.pages)
         writer.write(output_file)
+
     except Exception as error:
-        print(f"Merge failed: {error}")
+        print(f"\nFailed to process: {pdf_file.name}")
+        print(f"Reason: {error}")
         return None
 
     return total_pages
