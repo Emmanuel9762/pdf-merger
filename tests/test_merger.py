@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from main import find_pdfs, get_cli_files
+from pypdf import PdfReader, PdfWriter
+
+from main import find_pdfs, get_cli_files, merge_pdfs
 
 
 def test_find_pdfs(tmp_path):
@@ -31,3 +33,34 @@ def test_get_cli_files_missing_file():
     ])
 
     assert files is None
+
+
+def create_test_pdf(path, page_count):
+    writer = PdfWriter()
+
+    for _ in range(page_count):
+        writer.add_blank_page(width=612, height=792)
+
+    with open(path, "wb") as file:
+        writer.write(file)
+
+
+def test_merge_pdfs(tmp_path):
+    pdf_1 = tmp_path / "first.pdf"
+    pdf_2 = tmp_path / "second.pdf"
+    output = tmp_path / "merged.pdf"
+
+    create_test_pdf(pdf_1, 2)
+    create_test_pdf(pdf_2, 3)
+
+    total_pages = merge_pdfs(
+        [pdf_1, pdf_2],
+        output
+    )
+
+    assert total_pages == 5
+    assert output.exists()
+
+    reader = PdfReader(output)
+
+    assert len(reader.pages) == 5
