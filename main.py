@@ -135,6 +135,7 @@ def get_output_file(output_path=None):
 
 def merge_pdfs(pdf_files, output_file):
     writer = PdfWriter()
+    temp_file = output_file.with_suffix(".tmp.pdf")
 
     try:
         for pdf_file in pdf_files:
@@ -142,11 +143,16 @@ def merge_pdfs(pdf_files, output_file):
             writer.append(pdf_file)
 
         total_pages = len(writer.pages)
-        writer.write(output_file)
+        writer.write(temp_file)
+        temp_file.replace(output_file)
 
     except Exception as error:
         print(f"\nFailed to process: {pdf_file.name}")
         print(f"Reason: {error}")
+
+        if temp_file.exists():
+            temp_file.unlink()
+
         return None
 
     return total_pages
