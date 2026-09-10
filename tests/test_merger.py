@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from pypdf import PdfReader, PdfWriter
 
 from main import find_pdfs, get_cli_files, get_merge_order, merge_pdfs
@@ -123,20 +124,59 @@ def test_merge_invalid_pdf(tmp_path):
     assert not output.exists()
 
 
-def test_get_merge_order(tmp_path, monkeypatch):
+def test_get_merge_order():
     pdf_files = [
-        tmp_path / "mock_pdf_1.pdf",
-        tmp_path / "mock_pdf_2.pdf",
-        tmp_path / "mock_pdf_3.pdf",
-        tmp_path / "mock_pdf_4.pdf",
+        Path("mock_pdf_1.pdf"),
+        Path("mock_pdf_2.pdf"),
+        Path("mock_pdf_3.pdf"),
+        Path("mock_pdf_4.pdf"),
     ]
 
-    monkeypatch.setattr(
-        "builtins.input",
-        lambda _: "3 1 4 2"
-    )
+    inputs = iter(["3 1 4 2"])
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
 
     selected_files = get_merge_order(pdf_files)
+
+    monkeypatch.undo()
+
+    assert selected_files == [
+        pdf_files[2],
+        pdf_files[0],
+        pdf_files[3],
+        pdf_files[1],
+    ]
+
+
+@pytest.mark.parametrize(
+    "invalid_input",
+    [
+        "1 2 2 4",
+        "1 2 3",
+        "1 2 3 9",
+        "1 2 banana 4",
+    ],
+)
+def test_get_merge_order_rejects_invalid_input(invalid_input):
+    pdf_files = [
+        Path("mock_pdf_1.pdf"),
+        Path("mock_pdf_2.pdf"),
+        Path("mock_pdf_3.pdf"),
+        Path("mock_pdf_4.pdf"),
+    ]
+
+    inputs = iter([
+        invalid_input,
+        "3 1 4 2",
+    ])
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+
+    selected_files = get_merge_order(pdf_files)
+
+    monkeypatch.undo()
 
     assert selected_files == [
         pdf_files[2],
