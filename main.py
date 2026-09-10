@@ -140,9 +140,11 @@ def get_output_file(output_path=None):
 def merge_pdfs(pdf_files, output_file):
     writer = PdfWriter()
     temp_file = output_file.with_suffix(".tmp.pdf")
+    current_file = None
 
     try:
         for pdf_file in pdf_files:
+            current_file = pdf_file
             print(f"Processing: {pdf_file.name}")
             writer.append(pdf_file)
 
@@ -151,7 +153,11 @@ def merge_pdfs(pdf_files, output_file):
         temp_file.replace(output_file)
 
     except Exception as error:
-        print(f"\nFailed to process: {pdf_file.name}")
+        if current_file:
+            print(f"\nFailed to process: {current_file.name}")
+        else:
+            print("\nMerge failed.")
+
         print(f"Reason: {error}")
 
         if temp_file.exists():
