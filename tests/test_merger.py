@@ -35,11 +35,11 @@ def test_get_cli_files_missing_file():
     assert files is None
 
 
-def create_test_pdf(path, page_count):
+def create_test_pdf(path, page_count, width):
     writer = PdfWriter()
 
     for _ in range(page_count):
-        writer.add_blank_page(width=612, height=792)
+        writer.add_blank_page(width=width, height=792)
 
     with open(path, "wb") as file:
         writer.write(file)
@@ -50,8 +50,8 @@ def test_merge_pdfs(tmp_path):
     pdf_2 = tmp_path / "second.pdf"
     output = tmp_path / "merged.pdf"
 
-    create_test_pdf(pdf_1, 2)
-    create_test_pdf(pdf_2, 3)
+    create_test_pdf(pdf_1, 2, 612)
+    create_test_pdf(pdf_2, 3, 612)
 
     total_pages = merge_pdfs(
         [pdf_1, pdf_2],
@@ -64,3 +64,37 @@ def test_merge_pdfs(tmp_path):
     reader = PdfReader(output)
 
     assert len(reader.pages) == 5
+
+
+def test_merge_preserves_order(tmp_path):
+    first = tmp_path / "first.pdf"
+    second = tmp_path / "second.pdf"
+    third = tmp_path / "third.pdf"
+    output = tmp_path / "merged.pdf"
+
+    create_test_pdf(first, 1, 100)
+    create_test_pdf(second, 2, 200)
+    create_test_pdf(third, 3, 300)
+
+    total_pages = merge_pdfs(
+        [third, first, second],
+        output
+    )
+
+    assert total_pages == 6
+
+    reader = PdfReader(output)
+
+    widths = [
+        float(page.mediabox.width)
+        for page in reader.pages
+    ]
+
+    assert widths == [
+        300.0,
+        300.0,
+        300.0,
+        100.0,
+        200.0,
+        200.0,
+    ]
