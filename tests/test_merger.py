@@ -35,6 +35,14 @@ def test_get_cli_files_missing_file():
     assert files is None
 
 
+def test_get_cli_files_invalid_extension():
+    files = get_cli_files([
+        "input/notes.txt",
+    ])
+
+    assert files is None
+
+
 def create_test_pdf(path, page_count, width):
     writer = PdfWriter()
 
@@ -98,3 +106,18 @@ def test_merge_preserves_order(tmp_path):
         200.0,
         200.0,
     ]
+
+
+def test_merge_invalid_pdf(tmp_path):
+    invalid_pdf = tmp_path / "invalid.pdf"
+    output = tmp_path / "merged.pdf"
+
+    invalid_pdf.write_text("This is not a PDF.")
+
+    total_pages = merge_pdfs(
+        [invalid_pdf],
+        output
+    )
+
+    assert total_pages is None
+    assert not output.exists()
