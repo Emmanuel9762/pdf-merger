@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
 
-from main import find_pdfs, get_cli_files, merge_pdfs
+from main import find_pdfs, get_cli_files, get_merge_order, merge_pdfs
 
 
 def test_find_pdfs(tmp_path):
@@ -121,3 +121,26 @@ def test_merge_invalid_pdf(tmp_path):
 
     assert total_pages is None
     assert not output.exists()
+
+
+def test_get_merge_order(tmp_path, monkeypatch):
+    pdf_files = [
+        tmp_path / "mock_pdf_1.pdf",
+        tmp_path / "mock_pdf_2.pdf",
+        tmp_path / "mock_pdf_3.pdf",
+        tmp_path / "mock_pdf_4.pdf",
+    ]
+
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda _: "3 1 4 2"
+    )
+
+    selected_files = get_merge_order(pdf_files)
+
+    assert selected_files == [
+        pdf_files[2],
+        pdf_files[0],
+        pdf_files[3],
+        pdf_files[1],
+    ]
