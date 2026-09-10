@@ -3,7 +3,13 @@ from pathlib import Path
 import pytest
 from pypdf import PdfReader, PdfWriter
 
-from main import find_pdfs, get_cli_files, get_merge_order, merge_pdfs
+from main import (
+    find_pdfs,
+    get_cli_files,
+    get_merge_order,
+    is_valid_pdf,
+    merge_pdfs,
+)
 
 
 def test_find_pdfs(tmp_path):
@@ -15,6 +21,22 @@ def test_find_pdfs(tmp_path):
 
     assert len(pdfs) == 2
     assert all(file.suffix.lower() == ".pdf" for file in pdfs)
+
+def test_is_valid_pdf(tmp_path):
+    pdf_file = tmp_path / "test.pdf"
+    pdf_file.touch()
+
+    assert is_valid_pdf(pdf_file)
+
+
+def test_is_valid_pdf_rejects_invalid_file(tmp_path):
+    text_file = tmp_path / "notes.txt"
+    text_file.touch()
+
+    missing_file = tmp_path / "missing.pdf"
+
+    assert not is_valid_pdf(text_file)
+    assert not is_valid_pdf(missing_file)
 
 
 def test_get_cli_files():

@@ -33,22 +33,26 @@ def find_pdfs(input_folder):
     ]
 
 
+def is_valid_pdf(file_path):
+    file = Path(file_path)
+
+    if not file.exists():
+        return False
+
+    if not file.is_file():
+        return False
+
+    return file.suffix.lower() == ".pdf"
+
+
 def get_cli_files(file_paths):
     pdf_files = []
 
     for file_path in file_paths:
         pdf_file = Path(file_path)
 
-        if not pdf_file.exists():
-            print(f"File not found: {pdf_file}")
-            return None
-
-        if not pdf_file.is_file():
-            print(f"Not a file: {pdf_file}")
-            return None
-
-        if pdf_file.suffix.lower() != ".pdf":
-            print(f"Not a PDF file: {pdf_file}")
+        if not is_valid_pdf(pdf_file):
+            print(f"Invalid PDF file: {pdf_file}")
             return None
 
         pdf_files.append(pdf_file)
