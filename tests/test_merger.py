@@ -22,6 +22,7 @@ def test_find_pdfs(tmp_path):
     assert len(pdfs) == 2
     assert all(file.suffix.lower() == ".pdf" for file in pdfs)
 
+
 def test_is_valid_pdf(tmp_path):
     pdf_file = tmp_path / "test.pdf"
     pdf_file.touch()
@@ -144,6 +145,23 @@ def test_merge_invalid_pdf(tmp_path):
 
     assert total_pages is None
     assert not output.exists()
+
+
+def test_merge_failure_cleans_up_temp_file(tmp_path):
+    invalid_pdf = tmp_path / "invalid.pdf"
+    output = tmp_path / "merged.pdf"
+    temp_file = output.with_suffix(".tmp.pdf")
+
+    invalid_pdf.write_text("This is not a PDF.")
+
+    total_pages = merge_pdfs(
+        [invalid_pdf],
+        output
+    )
+
+    assert total_pages is None
+    assert not output.exists()
+    assert not temp_file.exists()
 
 
 def test_get_merge_order():
