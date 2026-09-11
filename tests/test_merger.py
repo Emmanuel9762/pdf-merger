@@ -3,10 +3,10 @@ from pathlib import Path
 import pytest
 from pypdf import PdfReader, PdfWriter
 
-from main import (
+from main import get_merge_order
+from pdf_merger import (
     find_pdfs,
     get_cli_files,
-    get_merge_order,
     is_valid_pdf,
     merge_pdfs,
 )
