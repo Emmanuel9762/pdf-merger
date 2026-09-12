@@ -259,3 +259,71 @@ def test_run_rejects_missing_cli_file(tmp_path):
 
     assert result == 1
     assert not output.exists()
+
+
+def test_run_rejects_missing_input_folder(tmp_path):
+    output = tmp_path / "merged.pdf"
+
+    args = Namespace(
+        files=[],
+        input=str(tmp_path / "missing"),
+        output=str(output),
+    )
+
+    result = run(args)
+
+    assert result == 1
+    assert not output.exists()
+
+
+def test_run_rejects_empty_input_folder(tmp_path):
+    input_folder = tmp_path / "input"
+    input_folder.mkdir()
+
+    output = tmp_path / "merged.pdf"
+
+    args = Namespace(
+        files=[],
+        input=str(input_folder),
+        output=str(output),
+    )
+
+    result = run(args)
+
+    assert result == 1
+    assert not output.exists()
+
+
+def test_run_merges_files_from_input_folder(tmp_path):
+    input_folder = tmp_path / "input"
+    input_folder.mkdir()
+
+    pdf_1 = input_folder / "mock_pdf_1.pdf"
+    pdf_2 = input_folder / "mock_pdf_2.pdf"
+    pdf_3 = input_folder / "mock_pdf_3.pdf"
+    pdf_4 = input_folder / "mock_pdf_4.pdf"
+
+    create_test_pdf(pdf_1, 1, 100)
+    create_test_pdf(pdf_2, 2, 200)
+    create_test_pdf(pdf_3, 3, 300)
+    create_test_pdf(pdf_4, 4, 400)
+
+    output = tmp_path / "merged.pdf"
+
+    args = Namespace(
+        files=[],
+        input=str(input_folder),
+        output=str(output),
+    )
+
+    result = run(
+        args,
+        input_func=lambda _: "3 1 4 2"
+    )
+
+    assert result == 0
+    assert output.exists()
+
+    reader = PdfReader(output)
+
+    assert len(reader.pages) == 10

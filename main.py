@@ -79,7 +79,7 @@ def get_output_file(output_path=None):
         return output_file
 
 
-def run(args):
+def run(args, input_func=input):
     input_folder = Path(args.input)
 
     if args.files:
@@ -106,7 +106,10 @@ def run(args):
     if args.files:
         selected_files = pdf_files
     else:
-        selected_files = get_merge_order(pdf_files)
+        selected_files = get_merge_order(
+            pdf_files,
+            input_func=input_func
+        )
 
     print("\nMerge order:")
 
