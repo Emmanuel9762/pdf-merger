@@ -1,12 +1,14 @@
+from argparse import Namespace
 from pathlib import Path
 
 import pytest
 from pypdf import PdfReader, PdfWriter
 
-from pdf_merger import get_merge_order
+from main import run
 from pdf_merger import (
     find_pdfs,
     get_cli_files,
+    get_merge_order,
     is_valid_pdf,
     merge_pdfs,
 )
@@ -218,3 +220,42 @@ def test_get_merge_order_rejects_invalid_input(invalid_input):
         pdf_files[3],
         pdf_files[1],
     ]
+
+
+def test_run_cli_merge(tmp_path):
+    pdf_1 = tmp_path / "first.pdf"
+    pdf_2 = tmp_path / "second.pdf"
+    output = tmp_path / "merged.pdf"
+
+    create_test_pdf(pdf_1, 2, 612)
+    create_test_pdf(pdf_2, 3, 612)
+
+    args = Namespace(
+        files=[str(pdf_1), str(pdf_2)],
+        input="input",
+        output=str(output),
+    )
+
+    result = run(args)
+
+    assert result == 0
+    assert output.exists()
+
+    reader = PdfReader(output)
+
+    assert len(reader.pages) == 5
+
+
+def test_run_rejects_missing_cli_file(tmp_path):
+    output = tmp_path / "merged.pdf"
+
+    args = Namespace(
+        files=[str(tmp_path / "missing.pdf")],
+        input="input",
+        output=str(output),
+    )
+
+    result = run(args)
+
+    assert result == 1
+    assert not output.exists()

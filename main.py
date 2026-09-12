@@ -32,7 +32,6 @@ def parse_args():
     return parser.parse_args()
 
 
-
 def get_output_file(output_path=None):
     if output_path:
         output_file = Path(output_path)
@@ -80,25 +79,29 @@ def get_output_file(output_path=None):
         return output_file
 
 
-def main():
-    args = parse_args()
+def run(args):
     input_folder = Path(args.input)
 
     if args.files:
         pdf_files = get_cli_files(args.files)
 
         if pdf_files is None:
-            return
+            return 1
     else:
         if not input_folder.exists():
             print("Input folder not found.")
-            return
+            return 1
 
         pdf_files = find_pdfs(input_folder)
 
         if not pdf_files:
             print("No PDF files found in the input folder.")
-            return
+            return 1
+
+        print("\nPDFs found:")
+
+        for index, pdf_file in enumerate(pdf_files, start=1):
+            print(f"{index}. {pdf_file.name}")
 
     if args.files:
         selected_files = pdf_files
@@ -113,18 +116,25 @@ def main():
     output_file = get_output_file(args.output)
 
     if output_file is None:
-        return
+        return 1
 
     total_pages = merge_pdfs(selected_files, output_file)
 
     if total_pages is None:
-        return
+        return 1
 
     print("\nPDFs merged successfully!")
     print(f"Files merged: {len(selected_files)}")
     print(f"Total pages: {total_pages}")
     print(f"Output: {output_file}")
 
+    return 0
+
+
+def main():
+    args = parse_args()
+    return run(args)
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
