@@ -1,7 +1,12 @@
 import argparse
 from pathlib import Path
 
-from pdf_merger import find_pdfs, get_cli_files, merge_pdfs
+from pdf_merger import (
+    find_pdfs,
+    get_cli_files,
+    get_merge_order,
+    merge_pdfs,
+)
 
 
 def parse_args():
@@ -26,35 +31,6 @@ def parse_args():
 
     return parser.parse_args()
 
-
-def get_merge_order(pdf_files):
-    print("\nPDFs found:")
-
-    for index, pdf_file in enumerate(pdf_files, start=1):
-        print(f"{index}. {pdf_file.name}")
-
-    while True:
-        order = input("\nEnter the order you want (e.g. 1 2 3): ")
-
-        try:
-            order = [int(number) for number in order.split()]
-        except ValueError:
-            print("Invalid input. Please enter numbers only.")
-            continue
-
-        if any(index < 1 or index > len(pdf_files) for index in order):
-            print(f"Enter numbers between 1 and {len(pdf_files)}.")
-            continue
-
-        if len(order) != len(pdf_files):
-            print(f"Please enter all {len(pdf_files)} PDF numbers.")
-            continue
-
-        if len(set(order)) != len(order):
-            print("Duplicate file numbers are not allowed.")
-            continue
-
-        return [pdf_files[index - 1] for index in order]
 
 
 def get_output_file(output_path=None):

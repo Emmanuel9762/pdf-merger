@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pypdf import PdfReader, PdfWriter
 
-from main import get_merge_order
+from pdf_merger import get_merge_order
 from pdf_merger import (
     find_pdfs,
     get_cli_files,
@@ -172,14 +172,10 @@ def test_get_merge_order():
         Path("mock_pdf_4.pdf"),
     ]
 
-    inputs = iter(["3 1 4 2"])
-
-    monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-
-    selected_files = get_merge_order(pdf_files)
-
-    monkeypatch.undo()
+    selected_files = get_merge_order(
+        pdf_files,
+        input_func=lambda _: "3 1 4 2"
+    )
 
     assert selected_files == [
         pdf_files[2],
@@ -211,12 +207,10 @@ def test_get_merge_order_rejects_invalid_input(invalid_input):
         "3 1 4 2",
     ])
 
-    monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-
-    selected_files = get_merge_order(pdf_files)
-
-    monkeypatch.undo()
+    selected_files = get_merge_order(
+        pdf_files,
+        input_func=lambda _: next(inputs)
+    )
 
     assert selected_files == [
         pdf_files[2],

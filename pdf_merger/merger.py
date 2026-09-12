@@ -36,6 +36,32 @@ def get_cli_files(file_paths):
 
     return pdf_files
 
+def get_merge_order(pdf_files, input_func=input):
+    while True:
+        order = input_func(
+            f"\nEnter the order you want (e.g. 1 2 3): "
+        )
+
+        try:
+            order = [int(number) for number in order.split()]
+        except ValueError:
+            print("Invalid input. Please enter numbers only.")
+            continue
+
+        if len(order) != len(pdf_files):
+            print(f"Please enter all {len(pdf_files)} PDF numbers.")
+            continue
+
+        if any(index < 1 or index > len(pdf_files) for index in order):
+            print(f"Enter numbers between 1 and {len(pdf_files)}.")
+            continue
+
+        if len(set(order)) != len(order):
+            print("Duplicate file numbers are not allowed.")
+            continue
+
+        return [pdf_files[index - 1] for index in order]
+
 
 def merge_pdfs(pdf_files, output_file):
     writer = PdfWriter()
