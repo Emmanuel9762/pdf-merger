@@ -92,3 +92,15 @@ def merge_pdfs(pdf_files, output_file):
         return None
 
     return total_pages
+
+def apply_merge_order(pdf_files, order):
+    if len(order) != len(pdf_files):
+        return None
+
+    if any(index < 1 or index > len(pdf_files) for index in order):
+        return None
+
+    if len(set(order)) != len(order):
+        return None
+
+    return [pdf_files[index - 1] for index in order]

@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 from pdf_merger import (
+    apply_merge_order,
     find_pdfs,
     get_cli_files,
     get_merge_order,
@@ -27,6 +28,13 @@ def parse_args():
     parser.add_argument(
         "--output",
         help="Output PDF file."
+    )
+
+    parser.add_argument(
+        "--order",
+        nargs="+",
+        type=int,
+        help="Order of input PDFs by number."
     )
 
     return parser.parse_args()
@@ -105,6 +113,18 @@ def run(args, input_func=input):
 
     if args.files:
         selected_files = pdf_files
+    elif getattr(args, "order", None):
+        selected_files = apply_merge_order(
+            pdf_files,
+            args.order
+        )
+
+        if selected_files is None:
+            print(
+                f"Invalid order. Enter each number from 1 to "
+                f"{len(pdf_files)} exactly once."
+            )
+            return 1
     else:
         selected_files = get_merge_order(
             pdf_files,
