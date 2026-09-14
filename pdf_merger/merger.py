@@ -104,3 +104,17 @@ def apply_merge_order(pdf_files, order):
         return None
 
     return [pdf_files[index - 1] for index in order]
+
+
+def merge_files(pdf_files, output_file):
+    if not pdf_files:
+        return None
+
+    return merge_pdfs(pdf_files, output_file)
+
+
+def merge_files(pdf_files, output_file):
+    if not pdf_files:
+        return None
+
+    return merge_pdfs(pdf_files, output_file)

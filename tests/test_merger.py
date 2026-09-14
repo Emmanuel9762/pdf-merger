@@ -6,10 +6,12 @@ from pypdf import PdfReader, PdfWriter
 
 from main import run
 from pdf_merger import (
+    apply_merge_order,
     find_pdfs,
     get_cli_files,
     get_merge_order,
     is_valid_pdf,
+    merge_files,
     merge_pdfs,
 )
 
@@ -327,3 +329,101 @@ def test_run_merges_files_from_input_folder(tmp_path):
     reader = PdfReader(output)
 
     assert len(reader.pages) == 10
+
+def test_apply_merge_order():
+    pdf_files = [
+        Path("mock_pdf_1.pdf"),
+        Path("mock_pdf_2.pdf"),
+        Path("mock_pdf_3.pdf"),
+        Path("mock_pdf_4.pdf"),
+    ]
+
+    selected_files = apply_merge_order(
+        pdf_files,
+        [3, 1, 4, 2]
+    )
+
+    assert selected_files == [
+        pdf_files[2],
+        pdf_files[0],
+        pdf_files[3],
+        pdf_files[1],
+    ]
+
+@pytest.mark.parametrize(
+    "order",
+    [
+        [1, 2, 2, 4],
+        [1, 2, 3],
+        [1, 2, 3, 5],
+    ],
+)
+def test_apply_merge_order_rejects_invalid_order(order):
+    pdf_files = [
+        Path("mock_pdf_1.pdf"),
+        Path("mock_pdf_2.pdf"),
+        Path("mock_pdf_3.pdf"),
+        Path("mock_pdf_4.pdf"),
+    ]
+
+    assert apply_merge_order(pdf_files, order) is None
+
+
+def test_run_accepts_cli_order(tmp_path):
+    input_folder = tmp_path / "input"
+    input_folder.mkdir()
+
+    for index, page_count in enumerate([1, 2, 3, 4], start=1):
+        create_test_pdf(
+            input_folder / f"mock_pdf_{index}.pdf",
+            page_count,
+            612
+        )
+
+    output = tmp_path / "merged.pdf"
+
+    args = Namespace(
+        files=[],
+        input=str(input_folder),
+        output=str(output),
+        order=[3, 1, 4, 2],
+    )
+
+    result = run(args)
+
+    assert result == 0
+    assert output.exists()
+
+    reader = PdfReader(output)
+
+    assert len(reader.pages) == 10
+
+
+def test_merge_files(tmp_path):
+    pdf_1 = tmp_path / "first.pdf"
+    pdf_2 = tmp_path / "second.pdf"
+    output = tmp_path / "merged.pdf"
+
+    create_test_pdf(pdf_1, 2, 612)
+    create_test_pdf(pdf_2, 3, 612)
+
+    total_pages = merge_files(
+        [pdf_1, pdf_2],
+        output
+    )
+
+    assert total_pages == 5
+    assert output.exists()
+
+    reader = PdfReader(output)
+
+    assert len(reader.pages) == 5
+
+
+def test_merge_files_rejects_empty_file_list(tmp_path):
+    output = tmp_path / "merged.pdf"
+
+    result = merge_files([], output)
+
+    assert result is None
+    assert not output.exists()

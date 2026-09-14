@@ -4,5 +4,6 @@ from .merger import (
     get_cli_files,
     get_merge_order,
     is_valid_pdf,
+    merge_files,
     merge_pdfs,
 )

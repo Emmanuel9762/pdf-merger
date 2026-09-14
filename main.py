@@ -6,7 +6,7 @@ from pdf_merger import (
     find_pdfs,
     get_cli_files,
     get_merge_order,
-    merge_pdfs,
+    merge_files,
 )
 
 
@@ -141,7 +141,10 @@ def run(args, input_func=input):
     if output_file is None:
         return 1
 
-    total_pages = merge_pdfs(selected_files, output_file)
+    total_pages = merge_files(
+    selected_files,
+    output_file
+)
 
     if total_pages is None:
         return 1
