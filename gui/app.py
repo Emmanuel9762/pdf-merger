@@ -5,6 +5,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QHBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
@@ -36,6 +38,9 @@ class MainWindow(QMainWindow):
 
         self.file_list = PDFListWidget()
 
+        self.status_label = QLabel("No PDFs selected.")
+        self.count_label = QLabel("Files: 0")
+
         add_button = QPushButton("Add PDFs")
         remove_button = QPushButton("Remove Selected")
         clear_button = QPushButton("Clear")
@@ -46,17 +51,25 @@ class MainWindow(QMainWindow):
         clear_button.clicked.connect(self.clear_files)
         merge_button.clicked.connect(self.merge_pdfs)
 
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(add_button)
+        button_layout.addWidget(remove_button)
+        button_layout.addWidget(clear_button)
+        button_layout.addWidget(merge_button)
+
         layout = QVBoxLayout()
+        layout.addWidget(QLabel("PDF files"))
         layout.addWidget(self.file_list)
-        layout.addWidget(add_button)
-        layout.addWidget(remove_button)
-        layout.addWidget(clear_button)
-        layout.addWidget(merge_button)
+        layout.addWidget(self.count_label)
+        layout.addWidget(self.status_label)
+        layout.addLayout(button_layout)
 
         container = QWidget()
         container.setLayout(layout)
 
         self.setCentralWidget(container)
+
+        self.update_status()
 
     def add_pdfs(self):
         files, _ = QFileDialog.getOpenFileNames(
@@ -65,6 +78,11 @@ class MainWindow(QMainWindow):
             "",
             "PDF Files (*.pdf)"
         )
+
+        if not files:
+            return
+
+        added = 0
 
         for file in files:
             pdf_file = Path(file)
@@ -79,8 +97,23 @@ class MainWindow(QMainWindow):
 
             self.file_list.addItem(item)
 
+            added += 1
+
+        self.update_status()
+
+        if added:
+            self.status_label.setText(
+                f"Added {added} PDF{'s' if added != 1 else ''}."
+            )
+
     def remove_selected(self):
         selected_items = self.file_list.selectedItems()
+
+        if not selected_items:
+            self.status_label.setText(
+                "Select at least one PDF to remove."
+            )
+            return
 
         for item in selected_items:
             pdf_file = item.data(Qt.UserRole)
@@ -90,9 +123,23 @@ class MainWindow(QMainWindow):
             self.file_list.takeItem(row)
             self.pdf_files.remove(pdf_file)
 
+        self.update_status()
+
+        self.status_label.setText(
+            f"Removed {len(selected_items)} PDF"
+            f"{'s' if len(selected_items) != 1 else ''}."
+        )
+
     def clear_files(self):
+        if not self.pdf_files:
+            self.status_label.setText("The list is already empty.")
+            return
+
         self.pdf_files.clear()
         self.file_list.clear()
+
+        self.update_status()
+        self.status_label.setText("PDF list cleared.")
 
     def get_ordered_files(self):
         ordered_files = []
@@ -104,6 +151,22 @@ class MainWindow(QMainWindow):
             ordered_files.append(pdf_file)
 
         return ordered_files
+
+    def update_status(self):
+        count = self.file_list.count()
+
+        self.count_label.setText(
+            f"Files: {count}"
+        )
+
+        if count == 0:
+            self.status_label.setText("No PDFs selected.")
+        elif count == 1:
+            self.status_label.setText("1 PDF ready.")
+        else:
+            self.status_label.setText(
+                f"{count} PDFs ready to merge."
+            )
 
     def merge_pdfs(self):
         pdf_files = self.get_ordered_files()
@@ -145,18 +208,28 @@ class MainWindow(QMainWindow):
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
+        self.status_label.setText("Merging PDFs...")
+        QApplication.processEvents()
+
         total_pages = merge_files(
             pdf_files,
             output_file
         )
 
         if total_pages is None:
+            self.status_label.setText("Merge failed.")
+
             QMessageBox.critical(
                 self,
                 "Merge failed",
                 "The PDFs could not be merged."
             )
             return
+
+        self.update_status()
+        self.status_label.setText(
+            f"Merge complete. {total_pages} pages written."
+        )
 
         QMessageBox.information(
             self,
