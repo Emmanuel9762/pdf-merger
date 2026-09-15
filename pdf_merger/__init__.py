@@ -7,3 +7,10 @@ from .merger import (
     merge_files,
     merge_pdfs,
 )
+
+from .pdf_info import (
+    PDFInfo,
+    get_pdf_info,
+    get_total_pages,
+    get_total_size,
+)

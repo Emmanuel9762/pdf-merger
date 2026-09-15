@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from pdf_merger import merge_files
+from pdf_merger import get_pdf_info, merge_files
 
 
 class PDFListWidget(QListWidget):
@@ -41,7 +41,8 @@ class PDFListWidget(QListWidget):
             ]
 
             if any(
-                file.is_file() and file.suffix.lower() == ".pdf"
+                file.is_file()
+                and file.suffix.lower() == ".pdf"
                 for file in pdf_files
             ):
                 event.acceptProposedAction()
@@ -67,7 +68,8 @@ class PDFListWidget(QListWidget):
             pdf_files = [
                 file
                 for file in pdf_files
-                if file.is_file() and file.suffix.lower() == ".pdf"
+                if file.is_file()
+                and file.suffix.lower() == ".pdf"
             ]
 
             if pdf_files:
@@ -134,8 +136,12 @@ class MainWindow(QMainWindow):
         files_layout.addLayout(file_button_layout)
         files_group.setLayout(files_layout)
 
-        self.output_name = QLineEdit("merged-document.pdf")
-        self.output_name.setPlaceholderText("merged-document.pdf")
+        self.output_name = QLineEdit(
+            "merged-document.pdf"
+        )
+        self.output_name.setPlaceholderText(
+            "merged-document.pdf"
+        )
 
         self.output_folder = QLineEdit(
             str(Path.home() / "Documents")
@@ -330,6 +336,7 @@ class MainWindow(QMainWindow):
 
     def add_pdf_files(self, pdf_files):
         added = 0
+        failed = 0
 
         for pdf_file in pdf_files:
             if not pdf_file.is_file():
@@ -341,10 +348,28 @@ class MainWindow(QMainWindow):
             if pdf_file in self.pdf_files:
                 continue
 
+            try:
+                info = get_pdf_info(pdf_file)
+            except Exception:
+                failed += 1
+                continue
+
             self.pdf_files.add(pdf_file)
 
-            item = QListWidgetItem(pdf_file.name)
-            item.setData(Qt.UserRole, pdf_file)
+            item = QListWidgetItem()
+
+            item.setData(
+                Qt.UserRole,
+                pdf_file
+            )
+
+            item.setText(
+                f"{pdf_file.name}\n"
+                f"{info.pages} "
+                f"{'page' if info.pages == 1 else 'pages'}"
+                f" • "
+                f"{self.format_size(info.size_bytes)}"
+            )
 
             self.file_list.addItem(item)
 
@@ -352,10 +377,20 @@ class MainWindow(QMainWindow):
 
         self.update_status()
 
-        if added:
+        if added and failed:
+            self.status_label.setText(
+                f"Added {added} PDF"
+                f"{'s' if added != 1 else ''}; "
+                f"{failed} could not be read."
+            )
+        elif added:
             self.status_label.setText(
                 f"Added {added} PDF"
                 f"{'s' if added != 1 else ''}."
+            )
+        elif failed:
+            self.status_label.setText(
+                "The selected PDFs could not be read."
             )
         else:
             self.status_label.setText(
@@ -398,7 +433,9 @@ class MainWindow(QMainWindow):
         self.file_list.clear()
 
         self.update_status()
-        self.status_label.setText("PDF list cleared.")
+        self.status_label.setText(
+            "PDF list cleared."
+        )
 
     def select_output_folder(self):
         folder = QFileDialog.getExistingDirectory(
@@ -433,7 +470,9 @@ class MainWindow(QMainWindow):
         if not filename.lower().endswith(".pdf"):
             filename += ".pdf"
 
-        folder = Path(self.output_folder.text())
+        folder = Path(
+            self.output_folder.text()
+        )
 
         if not folder.exists():
             try:
@@ -451,11 +490,50 @@ class MainWindow(QMainWindow):
 
         return folder / filename
 
+    @staticmethod
+    def format_size(size_bytes):
+        units = [
+            "B",
+            "KB",
+            "MB",
+            "GB",
+        ]
+
+        size = float(size_bytes)
+
+        for unit in units:
+            if size < 1024 or unit == units[-1]:
+                if unit == "B":
+                    return f"{int(size)} {unit}"
+
+                return f"{size:.1f} {unit}"
+
+            size /= 1024
+
     def update_status(self):
         count = self.file_list.count()
 
+        total_pages = 0
+        total_size = 0
+
+        for index in range(count):
+            item = self.file_list.item(index)
+            pdf_file = item.data(Qt.UserRole)
+
+            try:
+                info = get_pdf_info(pdf_file)
+            except Exception:
+                continue
+
+            total_pages += info.pages
+            total_size += info.size_bytes
+
         self.count_label.setText(
-            f"Files: {count}"
+            f"{count} PDF"
+            f"{'s' if count != 1 else ''}"
+            f" • {total_pages} "
+            f"{'page' if total_pages == 1 else 'pages'}"
+            f" • {self.format_size(total_size)}"
         )
 
         if count == 0:
