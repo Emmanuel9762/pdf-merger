@@ -36,10 +36,51 @@ def get_cli_files(file_paths):
 
     return pdf_files
 
+
+def merge_pdfs(pdf_files, output_file, progress_callback=None):
+    writer = PdfWriter()
+    temp_file = output_file.with_suffix(".tmp.pdf")
+    current_file = None
+    total_files = len(pdf_files)
+
+    try:
+        for index, pdf_file in enumerate(pdf_files, start=1):
+            current_file = pdf_file
+            print(f"Processing: {pdf_file.name}")
+
+            writer.append(pdf_file)
+
+            if progress_callback:
+                progress_callback(
+                    index,
+                    total_files,
+                    pdf_file
+                )
+
+        total_pages = len(writer.pages)
+        writer.write(temp_file)
+        temp_file.replace(output_file)
+
+    except Exception as error:
+        if current_file:
+            print(f"\nFailed to process: {current_file.name}")
+        else:
+            print("\nMerge failed.")
+
+        print(f"Reason: {error}")
+
+        if temp_file.exists():
+            temp_file.unlink()
+
+        return None
+
+    return total_pages
+
+
 def get_merge_order(pdf_files, input_func=input):
     while True:
         order = input_func(
-            f"\nEnter the order you want (e.g. 1 2 3): "
+            "\nEnter the order you want (e.g. 1 2 3): "
         )
 
         try:
@@ -63,36 +104,6 @@ def get_merge_order(pdf_files, input_func=input):
         return [pdf_files[index - 1] for index in order]
 
 
-def merge_pdfs(pdf_files, output_file):
-    writer = PdfWriter()
-    temp_file = output_file.with_suffix(".tmp.pdf")
-    current_file = None
-
-    try:
-        for pdf_file in pdf_files:
-            current_file = pdf_file
-            print(f"Processing: {pdf_file.name}")
-            writer.append(pdf_file)
-
-        total_pages = len(writer.pages)
-        writer.write(temp_file)
-        temp_file.replace(output_file)
-
-    except Exception as error:
-        if current_file:
-            print(f"\nFailed to process: {current_file.name}")
-        else:
-            print("\nMerge failed.")
-
-        print(f"Reason: {error}")
-
-        if temp_file.exists():
-            temp_file.unlink()
-
-        return None
-
-    return total_pages
-
 def apply_merge_order(pdf_files, order):
     if len(order) != len(pdf_files):
         return None
@@ -106,15 +117,12 @@ def apply_merge_order(pdf_files, order):
     return [pdf_files[index - 1] for index in order]
 
 
-def merge_files(pdf_files, output_file):
+def merge_files(pdf_files, output_file, progress_callback=None):
     if not pdf_files:
         return None
 
-    return merge_pdfs(pdf_files, output_file)
-
-
-def merge_files(pdf_files, output_file):
-    if not pdf_files:
-        return None
-
-    return merge_pdfs(pdf_files, output_file)
+    return merge_pdfs(
+        pdf_files,
+        output_file,
+        progress_callback=progress_callback
+    )

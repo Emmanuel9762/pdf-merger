@@ -6,6 +6,7 @@ from pdf_merger import merge_files
 
 
 class MergeWorker(QObject):
+    progress = Signal(int, int, object)
     finished = Signal(int, Path)
     failed = Signal()
 
@@ -17,9 +18,17 @@ class MergeWorker(QObject):
 
     @Slot()
     def run(self):
+        def report_progress(current, total, pdf_file):
+            self.progress.emit(
+                current,
+                total,
+                pdf_file
+            )
+
         total_pages = merge_files(
             self.pdf_files,
-            self.output_file
+            self.output_file,
+            progress_callback=report_progress
         )
 
         if total_pages is None:

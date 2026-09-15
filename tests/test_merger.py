@@ -81,6 +81,34 @@ def create_test_pdf(path, page_count, width):
         writer.write(file)
 
 
+@pytest.fixture
+def mock_pdf_1(tmp_path):
+    pdf_file = tmp_path / "mock_pdf_1.pdf"
+    create_test_pdf(pdf_file, 1, 612)
+    return pdf_file
+
+
+@pytest.fixture
+def mock_pdf_2(tmp_path):
+    pdf_file = tmp_path / "mock_pdf_2.pdf"
+    create_test_pdf(pdf_file, 2, 612)
+    return pdf_file
+
+
+@pytest.fixture
+def mock_pdf_3(tmp_path):
+    pdf_file = tmp_path / "mock_pdf_3.pdf"
+    create_test_pdf(pdf_file, 3, 612)
+    return pdf_file
+
+
+@pytest.fixture
+def mock_pdf_4(tmp_path):
+    pdf_file = tmp_path / "mock_pdf_4.pdf"
+    create_test_pdf(pdf_file, 4, 612)
+    return pdf_file
+
+
 def test_merge_pdfs(tmp_path):
     pdf_1 = tmp_path / "first.pdf"
     pdf_2 = tmp_path / "second.pdf"
@@ -420,6 +448,87 @@ def test_merge_files(tmp_path):
     assert len(reader.pages) == 5
 
 
+def test_merge_pdfs_reports_progress(
+    tmp_path,
+    mock_pdf_1,
+    mock_pdf_2,
+    mock_pdf_3,
+    mock_pdf_4,
+):
+    output_file = tmp_path / "merged.pdf"
+
+    pdf_files = [
+        mock_pdf_3,
+        mock_pdf_1,
+        mock_pdf_4,
+        mock_pdf_2,
+    ]
+
+    progress = []
+
+    def callback(current, total, pdf_file):
+        progress.append(
+            (current, total, pdf_file)
+        )
+
+    result = merge_pdfs(
+        pdf_files,
+        output_file,
+        progress_callback=callback
+    )
+
+    assert result == 4
+    assert progress == [
+        (1, 4, mock_pdf_3),
+        (2, 4, mock_pdf_1),
+        (3, 4, mock_pdf_4),
+        (4, 4, mock_pdf_2),
+    ]
+
+
+def test_merge_files_forwards_progress_callback(
+    tmp_path,
+    mock_pdf_1,
+    mock_pdf_2,
+):
+    output_file = tmp_path / "merged.pdf"
+
+    progress = []
+
+    def callback(current, total, pdf_file):
+        progress.append(
+            (current, total, pdf_file)
+        )
+
+    result = merge_files(
+        [mock_pdf_1, mock_pdf_2],
+        output_file,
+        progress_callback=callback
+    )
+
+    assert result == 2
+    assert progress == [
+        (1, 2, mock_pdf_1),
+        (2, 2, mock_pdf_2),
+    ]
+
+
+def test_merge_pdfs_without_progress_callback(
+    tmp_path,
+    mock_pdf_1,
+    mock_pdf_2,
+):
+    output_file = tmp_path / "merged.pdf"
+
+    result = merge_pdfs(
+        [mock_pdf_1, mock_pdf_2],
+        output_file
+    )
+
+    assert result == 2
+    assert output_file.exists()
+
+
 def test_merge_files_rejects_empty_file_list(tmp_path):
     output = tmp_path / "merged.pdf"
 
@@ -427,3 +536,84 @@ def test_merge_files_rejects_empty_file_list(tmp_path):
 
     assert result is None
     assert not output.exists()
+
+
+def test_merge_pdfs_reports_progress(
+    tmp_path,
+    mock_pdf_1,
+    mock_pdf_2,
+    mock_pdf_3,
+    mock_pdf_4,
+):
+    output_file = tmp_path / "merged.pdf"
+
+    pdf_files = [
+        mock_pdf_3,
+        mock_pdf_1,
+        mock_pdf_4,
+        mock_pdf_2,
+    ]
+
+    progress = []
+
+    def callback(current, total, pdf_file):
+        progress.append(
+            (current, total, pdf_file)
+        )
+
+    result = merge_pdfs(
+        pdf_files,
+        output_file,
+        progress_callback=callback
+    )
+
+    assert result == 10
+    assert progress == [
+        (1, 4, mock_pdf_3),
+        (2, 4, mock_pdf_1),
+        (3, 4, mock_pdf_4),
+        (4, 4, mock_pdf_2),
+    ]
+
+
+def test_merge_files_forwards_progress_callback(
+    tmp_path,
+    mock_pdf_1,
+    mock_pdf_2,
+):
+    output_file = tmp_path / "merged.pdf"
+
+    progress = []
+
+    def callback(current, total, pdf_file):
+        progress.append(
+            (current, total, pdf_file)
+        )
+
+    result = merge_files(
+        [mock_pdf_1, mock_pdf_2],
+        output_file,
+        progress_callback=callback
+    )
+
+    assert result == 3
+    assert progress == [
+        (1, 2, mock_pdf_1),
+        (2, 2, mock_pdf_2),
+    ]
+
+
+def test_merge_pdfs_without_progress_callback(
+    tmp_path,
+    mock_pdf_1,
+    mock_pdf_2,
+):
+    output_file = tmp_path / "merged.pdf"
+
+    result = merge_pdfs(
+        [mock_pdf_1, mock_pdf_2],
+        output_file
+    )
+
+    assert result == 3
+    assert output_file.exists()
