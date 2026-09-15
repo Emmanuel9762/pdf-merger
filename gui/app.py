@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -19,7 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from pdf_merger import get_pdf_info, merge_files
+from pdf_merger import get_pdf_info
+from gui.worker import MergeWorker
 
 
 class PDFListWidget(QListWidget):
@@ -88,6 +89,9 @@ class MainWindow(QMainWindow):
         self.resize(1000, 650)
 
         self.pdf_files = set()
+
+        self.merge_thread = None
+        self.merge_worker = None
 
         self.setup_ui()
         self.update_status()
@@ -167,14 +171,16 @@ class MainWindow(QMainWindow):
             folder_layout
         )
 
-        merge_button = QPushButton("Merge PDFs")
-        merge_button.setObjectName("mergeButton")
-        merge_button.clicked.connect(self.merge_pdfs)
+        self.merge_button = QPushButton("Merge PDFs")
+        self.merge_button.setObjectName("mergeButton")
+        self.merge_button.clicked.connect(
+            self.merge_pdfs
+        )
 
         output_layout = QVBoxLayout()
         output_layout.addLayout(output_form)
         output_layout.addSpacing(16)
-        output_layout.addWidget(merge_button)
+        output_layout.addWidget(self.merge_button)
         output_layout.addStretch()
 
         output_group = QGroupBox("Output")
@@ -312,6 +318,10 @@ class MainWindow(QMainWindow):
 
             QPushButton#mergeButton:hover {
                 background: #1d4ed8;
+            }
+
+            QPushButton#mergeButton:disabled {
+                background: #9ca3af;
             }
             """
         )
@@ -577,28 +587,67 @@ class MainWindow(QMainWindow):
             if choice != QMessageBox.Yes:
                 return
 
-        self.status_label.setText(
-            "Merging PDFs..."
-        )
-        QApplication.processEvents()
-
-        total_pages = merge_files(
+        self.start_merge(
             pdf_files,
             output_file
         )
 
-        if total_pages is None:
-            self.status_label.setText(
-                "Merge failed."
-            )
+    def start_merge(self, pdf_files, output_file):
+        self.merge_button.setEnabled(False)
+        self.file_list.setEnabled(False)
+        self.status_label.setText(
+            "Merging PDFs..."
+        )
 
-            QMessageBox.critical(
-                self,
-                "Merge failed",
-                "The PDFs could not be merged."
-            )
-            return
+        self.merge_thread = QThread()
+        self.merge_worker = MergeWorker(
+            pdf_files,
+            output_file
+        )
 
+        self.merge_worker.moveToThread(
+            self.merge_thread
+        )
+
+        self.merge_thread.started.connect(
+            self.merge_worker.run
+        )
+
+        self.merge_worker.finished.connect(
+            self.merge_succeeded
+        )
+
+        self.merge_worker.failed.connect(
+            self.merge_failed
+        )
+
+        self.merge_worker.finished.connect(
+            self.merge_thread.quit
+        )
+
+        self.merge_worker.failed.connect(
+            self.merge_thread.quit
+        )
+
+        self.merge_worker.finished.connect(
+            self.merge_worker.deleteLater
+        )
+
+        self.merge_worker.failed.connect(
+            self.merge_worker.deleteLater
+        )
+
+        self.merge_thread.finished.connect(
+            self.merge_thread.deleteLater
+        )
+
+        self.merge_thread.finished.connect(
+            self.merge_finished
+        )
+
+        self.merge_thread.start()
+
+    def merge_succeeded(self, total_pages, output_file):
         self.status_label.setText(
             f"Merge complete. {total_pages} pages written."
         )
@@ -607,10 +656,42 @@ class MainWindow(QMainWindow):
             self,
             "Merge complete",
             f"PDFs merged successfully.\n\n"
-            f"Files merged: {len(pdf_files)}\n"
+            f"Files merged: "
+            f"{self.file_list.count()}\n"
             f"Total pages: {total_pages}\n\n"
             f"Output:\n{output_file}"
         )
+
+    def merge_failed(self):
+        self.status_label.setText(
+            "Merge failed."
+        )
+
+        QMessageBox.critical(
+            self,
+            "Merge failed",
+            "The PDFs could not be merged."
+        )
+
+    def merge_finished(self):
+        self.merge_button.setEnabled(True)
+        self.file_list.setEnabled(True)
+
+        self.merge_thread = None
+        self.merge_worker = None
+
+    def closeEvent(self, event):
+        if self.merge_thread and self.merge_thread.isRunning():
+            QMessageBox.warning(
+                self,
+                "Merge in progress",
+                "Wait for the current merge to finish "
+                "before closing the application."
+            )
+            event.ignore()
+            return
+
+        event.accept()
 
 
 def run_gui():
