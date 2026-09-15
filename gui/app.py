@@ -5,8 +5,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
@@ -32,44 +35,215 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("PDF Merger")
-        self.resize(900, 600)
+        self.resize(1000, 650)
 
         self.pdf_files = set()
 
+        self.setup_ui()
+        self.update_status()
+
+    def setup_ui(self):
+        title_label = QLabel("Merge PDF files")
+        title_label.setObjectName("title")
+
+        subtitle_label = QLabel(
+            "Add PDF files, arrange them in the order you want, "
+            "and merge them into a single document."
+        )
+        subtitle_label.setObjectName("subtitle")
+        subtitle_label.setWordWrap(True)
+
         self.file_list = PDFListWidget()
 
-        self.status_label = QLabel("No PDFs selected.")
         self.count_label = QLabel("Files: 0")
+        self.count_label.setObjectName("count")
+
+        self.status_label = QLabel("No PDFs selected.")
+        self.status_label.setObjectName("status")
 
         add_button = QPushButton("Add PDFs")
         remove_button = QPushButton("Remove Selected")
         clear_button = QPushButton("Clear")
-        merge_button = QPushButton("Merge PDFs")
+
+        add_button.setObjectName("primaryButton")
 
         add_button.clicked.connect(self.add_pdfs)
         remove_button.clicked.connect(self.remove_selected)
         clear_button.clicked.connect(self.clear_files)
+
+        file_button_layout = QHBoxLayout()
+        file_button_layout.addWidget(add_button)
+        file_button_layout.addWidget(remove_button)
+        file_button_layout.addWidget(clear_button)
+        file_button_layout.addStretch()
+
+        files_group = QGroupBox("PDF files")
+        files_layout = QVBoxLayout()
+        files_layout.addWidget(self.file_list)
+        files_layout.addWidget(self.count_label)
+        files_layout.addLayout(file_button_layout)
+        files_group.setLayout(files_layout)
+
+        self.output_name = QLineEdit("merged-document.pdf")
+        self.output_name.setPlaceholderText("merged-document.pdf")
+
+        self.output_folder = QLineEdit(str(Path.home() / "Documents"))
+        self.output_folder.setReadOnly(True)
+
+        browse_button = QPushButton("Browse...")
+        browse_button.clicked.connect(self.select_output_folder)
+
+        folder_layout = QHBoxLayout()
+        folder_layout.addWidget(self.output_folder)
+        folder_layout.addWidget(browse_button)
+
+        output_form = QFormLayout()
+        output_form.addRow("File name", self.output_name)
+        output_form.addRow("Save to", folder_layout)
+
+        merge_button = QPushButton("Merge PDFs")
+        merge_button.setObjectName("mergeButton")
         merge_button.clicked.connect(self.merge_pdfs)
 
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(add_button)
-        button_layout.addWidget(remove_button)
-        button_layout.addWidget(clear_button)
-        button_layout.addWidget(merge_button)
+        output_layout = QVBoxLayout()
+        output_layout.addLayout(output_form)
+        output_layout.addSpacing(16)
+        output_layout.addWidget(merge_button)
+        output_layout.addStretch()
 
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("PDF files"))
-        layout.addWidget(self.file_list)
-        layout.addWidget(self.count_label)
-        layout.addWidget(self.status_label)
-        layout.addLayout(button_layout)
+        output_group = QGroupBox("Output")
+        output_group.setLayout(output_layout)
+
+        content_layout = QHBoxLayout()
+        content_layout.addWidget(files_group, 2)
+        content_layout.addWidget(output_group, 1)
+
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(24, 20, 24, 20)
+        main_layout.setSpacing(16)
+
+        main_layout.addWidget(title_label)
+        main_layout.addWidget(subtitle_label)
+        main_layout.addLayout(content_layout)
+        main_layout.addWidget(self.status_label)
 
         container = QWidget()
-        container.setLayout(layout)
+        container.setLayout(main_layout)
 
         self.setCentralWidget(container)
 
-        self.update_status()
+        self.setStyleSheet(
+            """
+            QMainWindow {
+                background: #f5f7fa;
+            }
+
+            QLabel#title {
+                font-size: 28px;
+                font-weight: 700;
+                color: #1f2937;
+            }
+
+            QLabel#subtitle {
+                font-size: 14px;
+                color: #6b7280;
+                padding-bottom: 4px;
+            }
+
+            QLabel#count {
+                font-size: 13px;
+                color: #6b7280;
+            }
+
+            QLabel#status {
+                background: #eef4ff;
+                border: 1px solid #d7e5ff;
+                border-radius: 8px;
+                color: #315b9d;
+                padding: 10px 12px;
+            }
+
+            QGroupBox {
+                background: white;
+                border: 1px solid #d9dee7;
+                border-radius: 10px;
+                margin-top: 10px;
+                padding: 16px;
+                font-size: 15px;
+                font-weight: 600;
+            }
+
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: #27364d;
+                background: #f5f7fa;
+            }
+
+            QListWidget {
+                background: white;
+                border: 1px solid #d9dee7;
+                border-radius: 8px;
+                padding: 6px;
+                font-size: 14px;
+            }
+
+            QListWidget::item {
+                padding: 10px;
+                border-bottom: 1px solid #edf0f4;
+            }
+
+            QListWidget::item:selected {
+                background: #e8f1ff;
+                color: #174ea6;
+            }
+
+            QLineEdit {
+                background: white;
+                border: 1px solid #cfd6e2;
+                border-radius: 7px;
+                padding: 9px;
+                font-size: 13px;
+            }
+
+            QPushButton {
+                background: white;
+                border: 1px solid #cfd6e2;
+                border-radius: 7px;
+                padding: 9px 14px;
+                font-size: 13px;
+            }
+
+            QPushButton:hover {
+                background: #f1f5f9;
+            }
+
+            QPushButton#primaryButton {
+                background: #2563eb;
+                border: none;
+                color: white;
+                font-weight: 600;
+            }
+
+            QPushButton#primaryButton:hover {
+                background: #1d4ed8;
+            }
+
+            QPushButton#mergeButton {
+                background: #2563eb;
+                border: none;
+                color: white;
+                font-size: 15px;
+                font-weight: 700;
+                padding: 13px;
+            }
+
+            QPushButton#mergeButton:hover {
+                background: #1d4ed8;
+            }
+            """
+        )
 
     def add_pdfs(self):
         files, _ = QFileDialog.getOpenFileNames(
@@ -103,7 +277,8 @@ class MainWindow(QMainWindow):
 
         if added:
             self.status_label.setText(
-                f"Added {added} PDF{'s' if added != 1 else ''}."
+                f"Added {added} PDF"
+                f"{'s' if added != 1 else ''}."
             )
 
     def remove_selected(self):
@@ -115,9 +290,10 @@ class MainWindow(QMainWindow):
             )
             return
 
+        count = len(selected_items)
+
         for item in selected_items:
             pdf_file = item.data(Qt.UserRole)
-
             row = self.file_list.row(item)
 
             self.file_list.takeItem(row)
@@ -126,13 +302,15 @@ class MainWindow(QMainWindow):
         self.update_status()
 
         self.status_label.setText(
-            f"Removed {len(selected_items)} PDF"
-            f"{'s' if len(selected_items) != 1 else ''}."
+            f"Removed {count} PDF"
+            f"{'s' if count != 1 else ''}."
         )
 
     def clear_files(self):
         if not self.pdf_files:
-            self.status_label.setText("The list is already empty.")
+            self.status_label.setText(
+                "The list is already empty."
+            )
             return
 
         self.pdf_files.clear()
@@ -140,6 +318,16 @@ class MainWindow(QMainWindow):
 
         self.update_status()
         self.status_label.setText("PDF list cleared.")
+
+    def select_output_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select output folder",
+            self.output_folder.text()
+        )
+
+        if folder:
+            self.output_folder.setText(folder)
 
     def get_ordered_files(self):
         ordered_files = []
@@ -151,6 +339,33 @@ class MainWindow(QMainWindow):
             ordered_files.append(pdf_file)
 
         return ordered_files
+
+    def get_output_file(self):
+        filename = self.output_name.text().strip()
+
+        if not filename:
+            self.status_label.setText(
+                "Output filename cannot be empty."
+            )
+            return None
+
+        if not filename.lower().endswith(".pdf"):
+            filename += ".pdf"
+
+        folder = Path(self.output_folder.text())
+
+        if not folder.exists():
+            try:
+                folder.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                QMessageBox.critical(
+                    self,
+                    "Invalid output folder",
+                    "The selected output folder could not be created."
+                )
+                return None
+
+        return folder / filename
 
     def update_status(self):
         count = self.file_list.count()
@@ -179,20 +394,10 @@ class MainWindow(QMainWindow):
             )
             return
 
-        output_file, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save merged PDF",
-            "",
-            "PDF Files (*.pdf)"
-        )
+        output_file = self.get_output_file()
 
-        if not output_file:
+        if output_file is None:
             return
-
-        output_file = Path(output_file)
-
-        if output_file.suffix.lower() != ".pdf":
-            output_file = output_file.with_suffix(".pdf")
 
         if output_file.exists():
             choice = QMessageBox.question(
@@ -205,8 +410,6 @@ class MainWindow(QMainWindow):
 
             if choice != QMessageBox.Yes:
                 return
-
-        output_file.parent.mkdir(parents=True, exist_ok=True)
 
         self.status_label.setText("Merging PDFs...")
         QApplication.processEvents()
@@ -226,7 +429,6 @@ class MainWindow(QMainWindow):
             )
             return
 
-        self.update_status()
         self.status_label.setText(
             f"Merge complete. {total_pages} pages written."
         )
