@@ -84,28 +84,136 @@ class MainWindow(QMainWindow):
         self.merge_thread = None
         self.merge_worker = None
 
+        self.apply_styles()
         self.build_ui()
+
+    def apply_styles(self):
+        self.setStyleSheet(
+            """
+            QMainWindow {
+                background: #202124;
+            }
+
+            QWidget {
+                color: #f1f3f4;
+                font-size: 13px;
+            }
+
+            QLabel {
+                color: #f1f3f4;
+            }
+
+            QListWidget {
+                background: #292a2d;
+                border: 1px solid #3c4043;
+                border-radius: 8px;
+                padding: 6px;
+                color: #f1f3f4;
+                outline: none;
+            }
+
+            QListWidget::item {
+                padding: 10px 8px;
+                border-radius: 6px;
+                color: #e8eaed;
+            }
+
+            QListWidget::item:hover {
+                background: #333538;
+            }
+
+            QListWidget::item:selected {
+                background: #3d5a80;
+                color: #ffffff;
+            }
+
+            QPushButton {
+                background: #303134;
+                border: 1px solid #4a4d51;
+                border-radius: 6px;
+                padding: 8px 14px;
+                color: #f1f3f4;
+                min-height: 18px;
+            }
+
+            QPushButton:hover {
+                background: #3c4043;
+                border-color: #6b7075;
+            }
+
+            QPushButton:pressed {
+                background: #28292c;
+            }
+
+            QPushButton:disabled {
+                background: #292a2d;
+                border-color: #36383b;
+                color: #777b80;
+            }
+
+            QProgressBar {
+                background: #292a2d;
+                border: 1px solid #3c4043;
+                border-radius: 6px;
+                min-height: 18px;
+                text-align: center;
+                color: #f1f3f4;
+            }
+
+            QProgressBar::chunk {
+                background: #4f8cff;
+                border-radius: 5px;
+            }
+
+            QMessageBox {
+                background: #202124;
+            }
+
+            QToolTip {
+                background: #303134;
+                color: #f1f3f4;
+                border: 1px solid #4a4d51;
+                padding: 5px;
+            }
+            """
+        )
 
     def build_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
         main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(20, 18, 20, 18)
+        main_layout.setSpacing(12)
 
         title = QLabel("PDF Merger")
         title.setStyleSheet(
-            "font-size: 24px; font-weight: bold;"
+            """
+            QLabel {
+                color: #ffffff;
+                font-size: 26px;
+                font-weight: 700;
+            }
+            """
         )
 
         subtitle = QLabel(
-            "Add PDFs, arrange them in the desired order, "
-            "then merge them."
+            "Add PDFs, drag to reorder them, then merge."
+        )
+        subtitle.setStyleSheet(
+            """
+            QLabel {
+                color: #aeb4bb;
+                font-size: 13px;
+            }
+            """
         )
 
         main_layout.addWidget(title)
         main_layout.addWidget(subtitle)
 
         self.file_list = PDFListWidget(self)
+        self.file_list.setMinimumHeight(220)
 
         self.file_list.setSelectionMode(
             QListWidget.SingleSelection
@@ -137,14 +245,31 @@ class MainWindow(QMainWindow):
         self.summary_label = QLabel(
             "0 PDFs | 0 pages | 0 B"
         )
+        self.summary_label.setStyleSheet(
+            """
+            QLabel {
+                color: #aeb4bb;
+                font-size: 12px;
+            }
+            """
+        )
 
         main_layout.addWidget(self.summary_label)
 
         output_layout = QHBoxLayout()
+        output_layout.setSpacing(10)
 
         output_layout.addWidget(QLabel("Output:"))
 
         self.output_name = QLabel("merged.pdf")
+        self.output_name.setStyleSheet(
+            """
+            QLabel {
+                color: #d8dde3;
+                font-weight: 600;
+            }
+            """
+        )
 
         output_layout.addWidget(self.output_name)
 
@@ -163,6 +288,14 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(output_layout)
 
         self.status_label = QLabel("Ready.")
+        self.status_label.setStyleSheet(
+            """
+            QLabel {
+                color: #d8dde3;
+                font-weight: 600;
+            }
+            """
+        )
 
         main_layout.addWidget(self.status_label)
 
@@ -174,6 +307,34 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.progress_bar)
 
         self.merge_button = QPushButton("Merge PDFs")
+        self.merge_button.setMinimumHeight(40)
+        self.merge_button.setStyleSheet(
+            """
+            QPushButton {
+                background: #4f8cff;
+                border: 1px solid #5d97ff;
+                border-radius: 7px;
+                padding: 9px 16px;
+                color: #ffffff;
+                font-size: 14px;
+                font-weight: 700;
+            }
+
+            QPushButton:hover {
+                background: #5d97ff;
+            }
+
+            QPushButton:pressed {
+                background: #3d78e6;
+            }
+
+            QPushButton:disabled {
+                background: #34445f;
+                border-color: #3b4d6a;
+                color: #8997ad;
+            }
+            """
+        )
         self.merge_button.clicked.connect(self.start_merge)
 
         main_layout.addWidget(self.merge_button)
