@@ -119,18 +119,18 @@ class MainWindow(QMainWindow):
 
         button_layout = QHBoxLayout()
 
-        add_button = QPushButton("Add PDFs")
-        add_button.clicked.connect(self.select_files)
+        self.add_button = QPushButton("Add PDFs")
+        self.add_button.clicked.connect(self.select_files)
 
-        remove_button = QPushButton("Remove Selected")
-        remove_button.clicked.connect(self.remove_selected)
+        self.remove_button = QPushButton("Remove Selected")
+        self.remove_button.clicked.connect(self.remove_selected)
 
-        clear_button = QPushButton("Clear")
-        clear_button.clicked.connect(self.clear_files)
+        self.clear_button = QPushButton("Clear")
+        self.clear_button.clicked.connect(self.clear_files)
 
-        button_layout.addWidget(add_button)
-        button_layout.addWidget(remove_button)
-        button_layout.addWidget(clear_button)
+        button_layout.addWidget(self.add_button)
+        button_layout.addWidget(self.remove_button)
+        button_layout.addWidget(self.clear_button)
 
         main_layout.addLayout(button_layout)
 
@@ -148,12 +148,17 @@ class MainWindow(QMainWindow):
 
         output_layout.addWidget(self.output_name)
 
-        choose_output_button = QPushButton("Choose Location")
-        choose_output_button.clicked.connect(
+        self.choose_output_button = QPushButton(
+            "Choose Location"
+        )
+
+        self.choose_output_button.clicked.connect(
             self.choose_output_location
         )
 
-        output_layout.addWidget(choose_output_button)
+        output_layout.addWidget(
+            self.choose_output_button
+        )
 
         main_layout.addLayout(output_layout)
 
@@ -468,15 +473,14 @@ class MainWindow(QMainWindow):
         self.merge_worker = None
 
     def set_merge_state(self, merging):
-        self.merge_button.setEnabled(not merging)
+        enabled = not merging
 
-        self.file_list.setEnabled(not merging)
-
-        for widget in self.findChildren(QPushButton):
-            if widget is self.merge_button:
-                continue
-
-            widget.setEnabled(not merging)
+        self.add_button.setEnabled(enabled)
+        self.remove_button.setEnabled(enabled)
+        self.clear_button.setEnabled(enabled)
+        self.choose_output_button.setEnabled(enabled)
+        self.merge_button.setEnabled(enabled)
+        self.file_list.setEnabled(enabled)
 
     def format_size(self, size_bytes):
         if size_bytes < 1024:
