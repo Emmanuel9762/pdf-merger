@@ -473,6 +473,9 @@ class MainWindow(QMainWindow):
         if not output_path.is_absolute():
             output_path = Path("output") / output_path
 
+        if output_path.suffix.lower() != ".pdf":
+            output_path = output_path.with_suffix(".pdf")
+
         output_path.parent.mkdir(
             parents=True,
             exist_ok=True
