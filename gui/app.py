@@ -432,17 +432,33 @@ class MainWindow(QMainWindow):
             f"Output: {output_file}"
         )
 
-    def merge_failed(self):
+    def merge_failed(self, error_message, current_file):
         self.status_label.setText(
             "Merge failed."
         )
 
         self.progress_bar.setValue(0)
 
+        if current_file:
+            file_name = Path(current_file).name
+
+            message = (
+                f"Could not process:\n"
+                f"{file_name}\n\n"
+                f"Reason:\n"
+                f"{error_message}"
+            )
+        else:
+            message = (
+                "The PDFs could not be merged.\n\n"
+                f"Reason:\n"
+                f"{error_message}"
+            )
+
         QMessageBox.critical(
             self,
             "Merge Failed",
-            "The PDFs could not be merged."
+            message
         )
 
     def merge_finished(self):
@@ -488,7 +504,7 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
-def main():
+def run_gui():
     app = QApplication([])
 
     window = MainWindow()
@@ -498,4 +514,4 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_gui())

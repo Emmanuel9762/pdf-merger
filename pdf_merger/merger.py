@@ -37,7 +37,12 @@ def get_cli_files(file_paths):
     return pdf_files
 
 
-def merge_pdfs(pdf_files, output_file, progress_callback=None):
+def merge_pdfs(
+    pdf_files,
+    output_file,
+    progress_callback=None,
+    error_callback=None,
+):
     writer = PdfWriter()
     temp_file = output_file.with_suffix(".tmp.pdf")
     current_file = None
@@ -71,6 +76,12 @@ def merge_pdfs(pdf_files, output_file, progress_callback=None):
 
         if temp_file.exists():
             temp_file.unlink()
+
+        if error_callback:
+            error_callback(
+                str(error),
+                current_file
+            )
 
         return None
 
@@ -117,12 +128,18 @@ def apply_merge_order(pdf_files, order):
     return [pdf_files[index - 1] for index in order]
 
 
-def merge_files(pdf_files, output_file, progress_callback=None):
+def merge_files(
+    pdf_files,
+    output_file,
+    progress_callback=None,
+    error_callback=None,
+):
     if not pdf_files:
         return None
 
     return merge_pdfs(
         pdf_files,
         output_file,
-        progress_callback=progress_callback
+        progress_callback=progress_callback,
+        error_callback=error_callback,
     )

@@ -1,6 +1,7 @@
 from argparse import Namespace
 from pathlib import Path
 
+import pdf_merger.merger as merger_module
 import pytest
 from pypdf import PdfReader, PdfWriter
 
@@ -617,3 +618,81 @@ def test_merge_pdfs_without_progress_callback(
 
     assert result == 3
     assert output_file.exists()
+
+
+def test_merge_pdfs_reports_error(
+    tmp_path,
+    monkeypatch,
+):
+    pdf_file = tmp_path / "broken.pdf"
+    output_file = tmp_path / "merged.pdf"
+
+    pdf_file.write_bytes(b"not a real pdf")
+
+    def raise_error(self, file_path):
+        raise RuntimeError("test merge failure")
+
+    monkeypatch.setattr(
+        merger_module.PdfWriter,
+        "append",
+        raise_error,
+    )
+
+    errors = []
+
+    def error_callback(error_message, current_file):
+        errors.append(
+            (error_message, current_file)
+        )
+
+    result = merger_module.merge_pdfs(
+        [pdf_file],
+        output_file,
+        error_callback=error_callback,
+    )
+
+    assert result is None
+
+    assert errors == [
+        ("test merge failure", pdf_file)
+    ]
+
+    assert not output_file.exists()
+
+
+def test_merge_files_forwards_error_callback(
+    tmp_path,
+    monkeypatch,
+):
+    pdf_file = tmp_path / "broken.pdf"
+    output_file = tmp_path / "merged.pdf"
+
+    pdf_file.write_bytes(b"not a real pdf")
+
+    def raise_error(self, file_path):
+        raise RuntimeError("forwarded failure")
+
+    monkeypatch.setattr(
+        merger_module.PdfWriter,
+        "append",
+        raise_error,
+    )
+
+    errors = []
+
+    def error_callback(error_message, current_file):
+        errors.append(
+            (error_message, current_file)
+        )
+
+    result = merger_module.merge_files(
+        [pdf_file],
+        output_file,
+        error_callback=error_callback,
+    )
+
+    assert result is None
+
+    assert errors == [
+        ("forwarded failure", pdf_file)
+    ]
