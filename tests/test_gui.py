@@ -8,6 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from gui.app import MainWindow
+from gui.worker import MergeWorker
 
 
 @pytest.fixture(scope="session")
@@ -144,3 +145,137 @@ def test_get_output_file_preserves_pdf_extension(window, tmp_path):
     result = window.get_output_file()
 
     assert result == output_path
+
+
+def test_merge_worker_success_emits_finished_and_total_pages():
+    pdf_files = [Path("input/a.pdf"), Path("input/b.pdf")]
+    output_file = Path("output/merged.pdf")
+    worker = MergeWorker(pdf_files, output_file)
+
+    saw_merge_files = {}
+    progress_events = []
+    finished_events = []
+
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+        saw_merge_files["files"] = list(files)
+        saw_merge_files["target"] = target
+        progress_callback(1, 2, files[0])
+        return 12
+
+    worker.progress.connect(lambda current, total, pdf_file: progress_events.append((current, total, pdf_file)))
+    worker.finished.connect(lambda total_pages, result_path: finished_events.append((total_pages, result_path)))
+
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        import gui.worker as worker_module
+
+        monkeypatch.setattr(worker_module, "merge_files", fake_merge_files)
+        worker.run()
+    finally:
+        monkeypatch.undo()
+
+    assert saw_merge_files == {"files": pdf_files, "target": output_file}
+    assert progress_events == [(1, 2, pdf_files[0])]
+    assert finished_events == [(12, output_file)]
+
+
+def test_merge_worker_failure_emits_detailed_error_and_file():
+    pdf_files = [Path("input/bad.pdf")]
+    output_file = Path("output/merged.pdf")
+    worker = MergeWorker(pdf_files, output_file)
+
+    failed_events = []
+    worker.failed.connect(lambda error_message, current_file: failed_events.append((error_message, current_file)))
+
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+        error_callback("Password required", files[0])
+        return None
+
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        import gui.worker as worker_module
+
+        monkeypatch.setattr(worker_module, "merge_files", fake_merge_files)
+        worker.run()
+    finally:
+        monkeypatch.undo()
+
+    assert failed_events == [("Password required", pdf_files[0])]
+
+
+def test_merge_worker_progress_forwards_values_unchanged():
+    pdf_files = [Path("input/test.pdf")]
+    output_file = Path("output/merged.pdf")
+    worker = MergeWorker(pdf_files, output_file)
+
+    progress_events = []
+    worker.progress.connect(lambda current, total, pdf_file: progress_events.append((current, total, pdf_file)))
+
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+        progress_callback(3, 7, files[0])
+        return 7
+
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        import gui.worker as worker_module
+
+        monkeypatch.setattr(worker_module, "merge_files", fake_merge_files)
+        worker.run()
+    finally:
+        monkeypatch.undo()
+
+    assert progress_events == [(3, 7, pdf_files[0])]
+
+
+def test_merge_progress_updates_gui_status_and_value(window):
+    pdf_file = Path("input/example.pdf")
+
+    window.merge_progress(2, 4, pdf_file)
+
+    assert window.progress_bar.maximum() == 4
+    assert window.progress_bar.value() == 2
+    assert window.status_label.text() == "Processing: example.pdf (2 of 4)"
+
+
+def test_merge_succeeded_updates_status_and_presents_result(window, monkeypatch):
+    captured = {}
+
+    def fake_information(parent, title, message):
+        captured["title"] = title
+        captured["message"] = message
+
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", fake_information)
+
+    window.progress_bar.setRange(0, 4)
+    window.progress_bar.setValue(0)
+
+    window.merge_succeeded(12, Path("output/merged.pdf"))
+
+    assert window.progress_bar.value() == 4
+    assert window.status_label.text() == "Merge completed successfully."
+    assert captured["title"] == "Merge Complete"
+    assert "Files: 4" in captured["message"]
+    assert "Pages: 12" in captured["message"]
+    assert "Output: output/merged.pdf" in captured["message"]
+
+
+def test_merge_failed_updates_status_and_shows_error_details(window, monkeypatch):
+    captured = {}
+
+    def fake_critical(parent, title, message):
+        captured["title"] = title
+        captured["message"] = message
+
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.critical", fake_critical)
+
+    window.progress_bar.setRange(0, 4)
+    window.progress_bar.setValue(4)
+
+    window.merge_failed("Password required", Path("input/bad.pdf"))
+
+    assert window.status_label.text() == "Merge failed."
+    assert window.progress_bar.value() == 0
+    assert captured["title"] == "Merge Failed"
+    assert "Could not process:" in captured["message"]
+    assert "bad.pdf" in captured["message"]
+    assert "Password required" in captured["message"]
