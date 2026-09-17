@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from pypdf import PdfWriter
@@ -37,6 +38,96 @@ def get_cli_files(file_paths):
     return pdf_files
 
 
+def validate_merge_request(pdf_files, output_file, error_callback=None):
+    if not pdf_files:
+        if error_callback:
+            error_callback("No PDF files selected.", None)
+        return False
+
+    seen_paths = set()
+    output_path = Path(output_file)
+
+    for pdf_file in pdf_files:
+        pdf_path = Path(pdf_file)
+
+        if not pdf_path.exists():
+            if error_callback:
+                error_callback(
+                    f"Input file does not exist: {pdf_path}",
+                    pdf_path,
+                )
+            return False
+
+        if not pdf_path.is_file():
+            if error_callback:
+                error_callback(
+                    f"Input path is not a file: {pdf_path}",
+                    pdf_path,
+                )
+            return False
+
+        if not os.access(pdf_path, os.R_OK):
+            if error_callback:
+                error_callback(
+                    f"Input file is not readable: {pdf_path}",
+                    pdf_path,
+                )
+            return False
+
+        normalized = pdf_path.resolve()
+
+        if normalized in seen_paths:
+            if error_callback:
+                error_callback(
+                    f"Duplicate input file: {pdf_path}",
+                    pdf_path,
+                )
+            return False
+
+        seen_paths.add(normalized)
+
+    for pdf_file in pdf_files:
+        pdf_path = Path(pdf_file)
+
+        if output_path.resolve() == pdf_path.resolve():
+            if error_callback:
+                error_callback(
+                    f"Output file cannot be the same as an input file: {output_path}",
+                    pdf_path,
+                )
+            return False
+
+    output_parent = output_path.parent
+
+    if output_parent.exists() and not output_parent.is_dir():
+        if error_callback:
+            error_callback(
+                f"Output parent is not a directory: {output_parent}",
+                pdf_files[0],
+            )
+        return False
+
+    try:
+        output_parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        if error_callback:
+            error_callback(
+                f"Output parent cannot be created or accessed: {output_parent}",
+                pdf_files[0],
+            )
+        return False
+
+    if output_path.exists() and output_path.is_dir():
+        if error_callback:
+            error_callback(
+                f"Output path is a directory: {output_path}",
+                pdf_files[0],
+            )
+        return False
+
+    return True
+
+
 def merge_pdfs(
     pdf_files,
     output_file,
@@ -63,6 +154,7 @@ def merge_pdfs(
                 )
 
         total_pages = len(writer.pages)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         writer.write(temp_file)
         temp_file.replace(output_file)
 
@@ -134,7 +226,11 @@ def merge_files(
     progress_callback=None,
     error_callback=None,
 ):
-    if not pdf_files:
+    if not validate_merge_request(
+        pdf_files,
+        output_file,
+        error_callback=error_callback,
+    ):
         return None
 
     return merge_pdfs(

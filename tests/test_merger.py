@@ -539,6 +539,129 @@ def test_merge_files_rejects_empty_file_list(tmp_path):
     assert not output.exists()
 
 
+def test_merge_files_rejects_missing_input_file(tmp_path):
+    good_file = tmp_path / "good.pdf"
+    missing_file = tmp_path / "missing.pdf"
+    output = tmp_path / "merged.pdf"
+
+    create_test_pdf(good_file, 2, 612)
+
+    errors = []
+
+    result = merge_files(
+        [good_file, missing_file],
+        output,
+        error_callback=lambda message, current_file: errors.append((message, current_file)),
+    )
+
+    assert result is None
+    assert errors == [(f"Input file does not exist: {missing_file}", missing_file)]
+    assert not output.exists()
+
+
+def test_merge_files_rejects_duplicate_input_files(tmp_path):
+    pdf_file = tmp_path / "duplicate.pdf"
+    output = tmp_path / "merged.pdf"
+
+    create_test_pdf(pdf_file, 2, 612)
+
+    errors = []
+
+    result = merge_files(
+        [pdf_file, pdf_file],
+        output,
+        error_callback=lambda message, current_file: errors.append((message, current_file)),
+    )
+
+    assert result is None
+    assert errors == [(f"Duplicate input file: {pdf_file}", pdf_file)]
+    assert not output.exists()
+
+
+def test_merge_files_rejects_output_equal_to_input(tmp_path):
+    pdf_file = tmp_path / "same.pdf"
+    create_test_pdf(pdf_file, 2, 612)
+
+    errors = []
+
+    result = merge_files(
+        [pdf_file],
+        pdf_file,
+        error_callback=lambda message, current_file: errors.append((message, current_file)),
+    )
+
+    assert result is None
+    assert errors == [(f"Output file cannot be the same as an input file: {pdf_file}", pdf_file)]
+    assert pdf_file.exists()
+
+
+def test_merge_files_rejects_invalid_output_parent(tmp_path):
+    pdf_file = tmp_path / "input.pdf"
+    create_test_pdf(pdf_file, 2, 612)
+
+    output_parent = tmp_path / "not_a_directory"
+    output_parent.write_text("not a directory")
+    output = output_parent / "merged.pdf"
+
+    errors = []
+
+    result = merge_files(
+        [pdf_file],
+        output,
+        error_callback=lambda message, current_file: errors.append((message, current_file)),
+    )
+
+    assert result is None
+    assert errors == [(f"Output parent is not a directory: {output_parent}", pdf_file)]
+    assert not output.exists()
+
+
+def test_merge_files_does_not_overwrite_existing_output_on_validation_failure(tmp_path):
+    pdf_file = tmp_path / "input.pdf"
+    output = tmp_path / "merged.pdf"
+
+    create_test_pdf(pdf_file, 2, 612)
+    output.write_text("old output")
+
+    errors = []
+
+    result = merge_files(
+        [pdf_file, pdf_file],
+        output,
+        error_callback=lambda message, current_file: errors.append((message, current_file)),
+    )
+
+    assert result is None
+    assert errors == [(f"Duplicate input file: {pdf_file}", pdf_file)]
+    assert output.read_text() == "old output"
+
+
+def test_merge_pdfs_does_not_leave_final_output_after_write_failure(tmp_path, monkeypatch):
+    pdf_file = tmp_path / "input.pdf"
+    output = tmp_path / "merged.pdf"
+    temp_file = output.with_suffix(".tmp.pdf")
+
+    create_test_pdf(pdf_file, 2, 612)
+
+    def raise_write_error(self, target):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(merger_module.PdfWriter, "write", raise_write_error)
+
+    errors = []
+
+    result = merge_files(
+        [pdf_file],
+        output,
+        error_callback=lambda message, current_file: errors.append((message, current_file)),
+    )
+
+    assert result is None
+    assert errors == [("disk full", pdf_file)]
+    assert not output.exists()
+    assert not temp_file.exists()
+
+
 def test_merge_pdfs_reports_progress(
     tmp_path,
     mock_pdf_1,
