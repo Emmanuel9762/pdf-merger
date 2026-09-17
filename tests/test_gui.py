@@ -5,6 +5,7 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
 
 from gui.app import MainWindow
@@ -19,6 +20,27 @@ def qapp():
         app = QApplication([])
 
     return app
+
+
+def wait_for_condition(condition, qapp, timeout=3000):
+    loop = QEventLoop()
+    timer = QTimer()
+    timer.setInterval(10)
+
+    def check():
+        if condition():
+            loop.quit()
+
+    timer.timeout.connect(check)
+    timer.start()
+
+    QTimer.singleShot(timeout, loop.quit)
+
+    loop.exec()
+
+    timer.stop()
+
+    return condition()
 
 
 @pytest.fixture
@@ -279,3 +301,110 @@ def test_merge_failed_updates_status_and_shows_error_details(window, monkeypatch
     assert "Could not process:" in captured["message"]
     assert "bad.pdf" in captured["message"]
     assert "Password required" in captured["message"]
+
+
+def test_start_merge_runs_worker_and_restores_gui_state(
+    window,
+    mock_pdfs,
+    tmp_path,
+    monkeypatch,
+    qapp,
+):
+    window.add_pdf_files(mock_pdfs)
+
+    output_file = tmp_path / "merged.pdf"
+    window.output_name.setText(str(output_file))
+
+    captured = {}
+
+    def fake_information(parent, title, message):
+        captured["title"] = title
+        captured["message"] = message
+
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", fake_information)
+
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+        progress_callback(1, len(files), files[0])
+        progress_callback(2, len(files), files[1])
+        return 10
+
+    monkeypatch.setattr("gui.worker.merge_files", fake_merge_files)
+
+    window.start_merge()
+
+    assert window.merge_thread is not None
+    assert window.merge_worker is not None
+    assert not window.merge_button.isEnabled()
+    assert not window.file_list.isEnabled()
+
+    completed = wait_for_condition(
+        lambda: window.merge_thread is None and window.merge_worker is None,
+        qapp,
+    )
+
+    assert completed is True
+    assert window.status_label.text() == "Merge completed successfully."
+    assert window.progress_bar.value() == window.progress_bar.maximum()
+    assert window.merge_button.isEnabled()
+    assert window.file_list.isEnabled()
+    assert window.add_button.isEnabled()
+    assert window.remove_button.isEnabled()
+    assert window.clear_button.isEnabled()
+    assert window.choose_output_button.isEnabled()
+    assert captured["title"] == "Merge Complete"
+    assert "Pages: 10" in captured["message"]
+
+
+def test_start_merge_failure_lifecycle_restores_gui_state(
+    window,
+    mock_pdfs,
+    tmp_path,
+    monkeypatch,
+    qapp,
+):
+    window.add_pdf_files(mock_pdfs)
+
+    output_file = tmp_path / "merged.pdf"
+    window.output_name.setText(str(output_file))
+
+    captured = {}
+
+    def fake_critical(parent, title, message):
+        captured["title"] = title
+        captured["message"] = message
+
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.critical", fake_critical)
+
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+        if progress_callback:
+            progress_callback(1, len(files), files[0])
+
+        if error_callback:
+            error_callback("Password required", files[0])
+
+        return None
+
+    monkeypatch.setattr("gui.worker.merge_files", fake_merge_files)
+
+    window.start_merge()
+
+    assert window.merge_thread is not None
+    assert window.merge_worker is not None
+
+    completed = wait_for_condition(
+        lambda: window.merge_thread is None and window.merge_worker is None,
+        qapp,
+    )
+
+    assert completed is True
+    assert window.status_label.text() == "Merge failed."
+    assert window.progress_bar.value() == 0
+    assert window.add_button.isEnabled()
+    assert window.remove_button.isEnabled()
+    assert window.clear_button.isEnabled()
+    assert window.choose_output_button.isEnabled()
+    assert window.merge_button.isEnabled()
+    assert window.file_list.isEnabled()
+    assert captured["title"] == "Merge Failed"
+    assert "Password required" in captured["message"]
+    assert mock_pdfs[0].name in captured["message"]
