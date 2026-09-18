@@ -477,3 +477,62 @@ def test_start_merge_failure_lifecycle_restores_gui_state(
     assert captured["title"] == "Merge Failed"
     assert "Password required" in captured["message"]
     assert mock_pdfs[0].name in captured["message"]
+
+
+def test_start_merge_cancellation_lifecycle_restores_gui_state(
+    window,
+    mock_pdfs,
+    tmp_path,
+    monkeypatch,
+    qapp,
+):
+    window.add_pdf_files(mock_pdfs)
+
+    output_file = tmp_path / "merged.pdf"
+    window.output_name.setText(str(output_file))
+
+    def fake_merge_files(
+        files,
+        target,
+        progress_callback=None,
+        error_callback=None,
+        cancel_callback=None,
+    ):
+        if progress_callback:
+            progress_callback(1, len(files), files[0])
+
+        assert cancel_callback is not None
+        assert cancel_callback() is True
+
+        return None
+
+    monkeypatch.setattr(
+        "gui.worker.merge_files",
+        fake_merge_files,
+    )
+
+    window.start_merge()
+
+    assert window.merge_thread is not None
+    assert window.merge_worker is not None
+    assert not window.merge_button.isEnabled()
+    assert not window.file_list.isEnabled()
+    assert window.cancel_button.isEnabled()
+
+    window.cancel_merge()
+
+    completed = wait_for_condition(
+        lambda: window.merge_thread is None and window.merge_worker is None,
+        qapp,
+    )
+
+    assert completed is True
+    assert window.status_label.text() == "Merge cancelled."
+    assert window.progress_bar.value() == 0
+    assert window.add_button.isEnabled()
+    assert window.remove_button.isEnabled()
+    assert window.clear_button.isEnabled()
+    assert window.choose_output_button.isEnabled()
+    assert window.merge_button.isEnabled()
+    assert window.file_list.isEnabled()
+    assert not window.cancel_button.isEnabled()
