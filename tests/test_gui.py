@@ -71,6 +71,7 @@ def test_initial_gui_state(window):
     assert window.clear_button.isEnabled()
     assert window.choose_output_button.isEnabled()
     assert window.merge_button.isEnabled()
+    assert window.cancel_button.isEnabled() is False
     assert window.file_list.isEnabled()
 
 
@@ -82,6 +83,7 @@ def test_merge_state_disables_controls(window):
     assert not window.clear_button.isEnabled()
     assert not window.choose_output_button.isEnabled()
     assert not window.merge_button.isEnabled()
+    assert window.cancel_button.isEnabled()
     assert not window.file_list.isEnabled()
 
 
@@ -94,6 +96,7 @@ def test_merge_state_restores_controls(window):
     assert window.clear_button.isEnabled()
     assert window.choose_output_button.isEnabled()
     assert window.merge_button.isEnabled()
+    assert not window.cancel_button.isEnabled()
     assert window.file_list.isEnabled()
 
 
@@ -178,9 +181,11 @@ def test_merge_worker_success_emits_finished_and_total_pages():
     progress_events = []
     finished_events = []
 
-    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
         saw_merge_files["files"] = list(files)
         saw_merge_files["target"] = target
+        assert cancel_callback is not None
+        assert cancel_callback() is False
         progress_callback(1, 2, files[0])
         return 12
 
@@ -201,6 +206,48 @@ def test_merge_worker_success_emits_finished_and_total_pages():
     assert finished_events == [(12, output_file)]
 
 
+def test_merge_worker_tracks_cancellation_state():
+    pdf_files = [Path("input/a.pdf")]
+    output_file = Path("output/merged.pdf")
+    worker = MergeWorker(pdf_files, output_file)
+
+    assert not worker.is_cancelled()
+
+    worker.cancel()
+
+    assert worker.is_cancelled()
+
+
+def test_merge_worker_does_not_emit_finished_when_cancelled():
+    pdf_files = [Path("input/a.pdf"), Path("input/b.pdf")]
+    output_file = Path("output/merged.pdf")
+    worker = MergeWorker(pdf_files, output_file)
+
+    finished_events = []
+    cancelled_events = []
+    worker.finished.connect(lambda total_pages, result_path: finished_events.append((total_pages, result_path)))
+    worker.cancelled.connect(lambda: cancelled_events.append(True))
+
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
+        assert cancel_callback is not None
+        assert cancel_callback() is True
+        return None
+
+    worker.cancel()
+
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        import gui.worker as worker_module
+
+        monkeypatch.setattr(worker_module, "merge_files", fake_merge_files)
+        worker.run()
+    finally:
+        monkeypatch.undo()
+
+    assert finished_events == []
+    assert cancelled_events == [True]
+
+
 def test_merge_worker_failure_emits_detailed_error_and_file():
     pdf_files = [Path("input/bad.pdf")]
     output_file = Path("output/merged.pdf")
@@ -209,7 +256,7 @@ def test_merge_worker_failure_emits_detailed_error_and_file():
     failed_events = []
     worker.failed.connect(lambda error_message, current_file: failed_events.append((error_message, current_file)))
 
-    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
         error_callback("Password required", files[0])
         return None
 
@@ -233,7 +280,7 @@ def test_merge_worker_progress_forwards_values_unchanged():
     progress_events = []
     worker.progress.connect(lambda current, total, pdf_file: progress_events.append((current, total, pdf_file)))
 
-    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
         progress_callback(3, 7, files[0])
         return 7
 
@@ -303,6 +350,28 @@ def test_merge_failed_updates_status_and_shows_error_details(window, monkeypatch
     assert "Password required" in captured["message"]
 
 
+def test_cancel_merge_requests_worker_cancellation(window):
+    worker = MergeWorker([Path("input/a.pdf")], Path("output/merged.pdf"))
+    window.merge_worker = worker
+    window.cancel_button.setEnabled(True)
+
+    window.cancel_merge()
+
+    assert not window.cancel_button.isEnabled()
+    assert window.status_label.text() == "Cancelling merge..."
+    assert worker.is_cancelled()
+
+
+def test_merge_cancelled_updates_status_and_progress(window):
+    window.progress_bar.setRange(0, 4)
+    window.progress_bar.setValue(4)
+
+    window.merge_cancelled()
+
+    assert window.status_label.text() == "Merge cancelled."
+    assert window.progress_bar.value() == 0
+
+
 def test_start_merge_runs_worker_and_restores_gui_state(
     window,
     mock_pdfs,
@@ -323,7 +392,7 @@ def test_start_merge_runs_worker_and_restores_gui_state(
 
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", fake_information)
 
-    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
         progress_callback(1, len(files), files[0])
         progress_callback(2, len(files), files[1])
         return 10
@@ -375,7 +444,7 @@ def test_start_merge_failure_lifecycle_restores_gui_state(
 
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.critical", fake_critical)
 
-    def fake_merge_files(files, target, progress_callback=None, error_callback=None):
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
         if progress_callback:
             progress_callback(1, len(files), files[0])
 

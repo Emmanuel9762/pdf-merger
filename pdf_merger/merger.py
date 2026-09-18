@@ -133,6 +133,7 @@ def merge_pdfs(
     output_file,
     progress_callback=None,
     error_callback=None,
+    cancel_callback=None,
 ):
     writer = PdfWriter()
     temp_file = output_file.with_suffix(".tmp.pdf")
@@ -141,6 +142,11 @@ def merge_pdfs(
 
     try:
         for index, pdf_file in enumerate(pdf_files, start=1):
+            if cancel_callback and cancel_callback():
+                if temp_file.exists():
+                    temp_file.unlink()
+                return None
+
             current_file = pdf_file
             print(f"Processing: {pdf_file.name}")
 
@@ -225,6 +231,7 @@ def merge_files(
     output_file,
     progress_callback=None,
     error_callback=None,
+    cancel_callback=None,
 ):
     if not validate_merge_request(
         pdf_files,
@@ -238,4 +245,5 @@ def merge_files(
         output_file,
         progress_callback=progress_callback,
         error_callback=error_callback,
+        cancel_callback=cancel_callback,
     )

@@ -1,4 +1,5 @@
 from pathlib import Path
+from threading import Event
 
 from PySide6.QtCore import QObject, Signal, Slot
 
@@ -9,12 +10,20 @@ class MergeWorker(QObject):
     progress = Signal(int, int, object)
     finished = Signal(int, Path)
     failed = Signal(str, object)
+    cancelled = Signal()
 
     def __init__(self, pdf_files, output_file):
         super().__init__()
 
         self.pdf_files = pdf_files
         self.output_file = output_file
+        self._cancel_event = Event()
+
+    def cancel(self):
+        self._cancel_event.set()
+
+    def is_cancelled(self):
+        return self._cancel_event.is_set()
 
     @Slot()
     def run(self):
@@ -36,9 +45,12 @@ class MergeWorker(QObject):
             self.output_file,
             progress_callback=report_progress,
             error_callback=report_error,
+            cancel_callback=self.is_cancelled,
         )
 
         if total_pages is None:
+            if self.is_cancelled():
+                self.cancelled.emit()
             return
 
         self.finished.emit(

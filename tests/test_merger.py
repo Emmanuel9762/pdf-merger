@@ -539,6 +539,29 @@ def test_merge_files_rejects_empty_file_list(tmp_path):
     assert not output.exists()
 
 
+def test_merge_files_can_be_cancelled(tmp_path, mock_pdf_1, mock_pdf_2):
+    output = tmp_path / "merged.pdf"
+    temp_file = output.with_suffix(".tmp.pdf")
+
+    cancelled = False
+
+    def cancel_callback():
+        nonlocal cancelled
+        cancelled = True
+        return True
+
+    result = merge_files(
+        [mock_pdf_1, mock_pdf_2],
+        output,
+        cancel_callback=cancel_callback,
+    )
+
+    assert result is None
+    assert cancelled is True
+    assert not output.exists()
+    assert not temp_file.exists()
+
+
 def test_merge_files_rejects_missing_input_file(tmp_path):
     good_file = tmp_path / "good.pdf"
     missing_file = tmp_path / "missing.pdf"

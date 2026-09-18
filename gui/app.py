@@ -339,6 +339,13 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(self.merge_button)
 
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setMinimumHeight(40)
+        self.cancel_button.setEnabled(False)
+        self.cancel_button.clicked.connect(self.cancel_merge)
+
+        main_layout.addWidget(self.cancel_button)
+
     def select_files(self):
         file_paths, _ = QFileDialog.getOpenFileNames(
             self,
@@ -548,11 +555,19 @@ class MainWindow(QMainWindow):
             self.merge_failed
         )
 
+        self.merge_worker.cancelled.connect(
+            self.merge_cancelled
+        )
+
         self.merge_worker.finished.connect(
             self.merge_thread.quit
         )
 
         self.merge_worker.failed.connect(
+            self.merge_thread.quit
+        )
+
+        self.merge_worker.cancelled.connect(
             self.merge_thread.quit
         )
 
@@ -561,6 +576,10 @@ class MainWindow(QMainWindow):
         )
 
         self.merge_worker.failed.connect(
+            self.merge_worker.deleteLater
+        )
+
+        self.merge_worker.cancelled.connect(
             self.merge_worker.deleteLater
         )
 
@@ -630,6 +649,18 @@ class MainWindow(QMainWindow):
             message
         )
 
+    def cancel_merge(self):
+        if self.merge_worker is None:
+            return
+
+        self.cancel_button.setEnabled(False)
+        self.status_label.setText("Cancelling merge...")
+        self.merge_worker.cancel()
+
+    def merge_cancelled(self):
+        self.status_label.setText("Merge cancelled.")
+        self.progress_bar.setValue(0)
+
     def merge_finished(self):
         self.set_merge_state(False)
 
@@ -645,6 +676,7 @@ class MainWindow(QMainWindow):
         self.choose_output_button.setEnabled(enabled)
         self.merge_button.setEnabled(enabled)
         self.file_list.setEnabled(enabled)
+        self.cancel_button.setEnabled(merging)
 
     def format_size(self, size_bytes):
         if size_bytes < 1024:
