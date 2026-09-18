@@ -69,7 +69,7 @@ class PDFListWidget(QListWidget):
             return
 
         super().dropEvent(event)
-        self.parentWidget().refresh_metadata()
+        self.parentWidget().refresh_file_list()
 
 
 class MainWindow(QMainWindow):
@@ -226,7 +226,7 @@ class MainWindow(QMainWindow):
         self.file_list.setSpacing(3)
 
         self.file_list.model().rowsMoved.connect(
-            self.refresh_metadata
+            self.refresh_file_list
         )
 
         main_layout.addWidget(self.file_list)
@@ -421,10 +421,7 @@ class MainWindow(QMainWindow):
 
             self.pdf_files.add(pdf_file)
 
-            item = QListWidgetItem(
-                self.format_pdf_item(pdf_file)
-            )
-
+            item = QListWidgetItem()
             item.setData(
                 Qt.UserRole,
                 pdf_file
@@ -432,16 +429,32 @@ class MainWindow(QMainWindow):
 
             self.file_list.addItem(item)
 
-        self.refresh_metadata()
+        self.refresh_file_list()
 
-    def format_pdf_item(self, pdf_file):
+    def format_pdf_item(self, pdf_file, position):
         info = get_pdf_info(pdf_file)
 
         return (
+            f"{position:02d}   "
             f"{pdf_file.name}    "
             f"{info.pages} pages    "
             f"{self.format_size(info.size_bytes)}"
         )
+
+    def refresh_file_list(self):
+        for index in range(self.file_list.count()):
+            item = self.file_list.item(index)
+            pdf_file = item.data(Qt.UserRole)
+
+            if pdf_file:
+                item.setText(
+                    self.format_pdf_item(
+                        Path(pdf_file),
+                        index + 1,
+                    )
+                )
+
+        self.refresh_metadata()
 
     def refresh_metadata(self):
         ordered_files = self.get_ordered_files()
@@ -492,12 +505,12 @@ class MainWindow(QMainWindow):
 
         self.file_list.takeItem(row)
 
-        self.refresh_metadata()
+        self.refresh_file_list()
 
     def clear_files(self):
         self.file_list.clear()
         self.pdf_files.clear()
-        self.refresh_metadata()
+        self.refresh_file_list()
 
     def choose_output_location(self):
         file_path, _ = QFileDialog.getSaveFileName(

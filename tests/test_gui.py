@@ -108,6 +108,50 @@ def test_add_pdf_files(window, mock_pdfs):
     assert window.summary_label.text().startswith("2 PDFs  •  ")
 
 
+def test_pdf_items_are_numbered_in_order(window, mock_pdfs):
+    window.add_pdf_files(mock_pdfs)
+
+    assert window.file_list.item(0).text().startswith(
+        "01   mock_pdf_1.pdf"
+    )
+    assert window.file_list.item(1).text().startswith(
+        "02   mock_pdf_2.pdf"
+    )
+
+
+def test_pdf_items_are_renumbered_after_removal(window, mock_pdfs):
+    window.add_pdf_files(mock_pdfs)
+
+    window.file_list.setCurrentRow(0)
+    window.remove_selected()
+
+    assert window.file_list.item(0).text().startswith(
+        "01   mock_pdf_2.pdf"
+    )
+
+
+def test_pdf_items_are_renumbered_after_reordering(
+    window,
+    mock_pdfs,
+):
+    window.add_pdf_files(mock_pdfs)
+
+    first_item = window.file_list.takeItem(0)
+    second_item = window.file_list.takeItem(0)
+
+    window.file_list.insertItem(0, second_item)
+    window.file_list.insertItem(1, first_item)
+
+    window.refresh_file_list()
+
+    assert window.file_list.item(0).text().startswith(
+        "01   mock_pdf_2.pdf"
+    )
+    assert window.file_list.item(1).text().startswith(
+        "02   mock_pdf_1.pdf"
+    )
+
+
 def test_duplicate_pdf_files_are_ignored(window, mock_pdfs):
     window.add_pdf_files(mock_pdfs)
     window.add_pdf_files([mock_pdfs[0]])
