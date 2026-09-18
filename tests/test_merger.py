@@ -562,6 +562,41 @@ def test_merge_files_can_be_cancelled(tmp_path, mock_pdf_1, mock_pdf_2):
     assert not temp_file.exists()
 
 
+def test_merge_files_can_be_cancelled_after_processing_a_file(
+    tmp_path,
+    mock_pdf_1,
+    mock_pdf_2,
+):
+    output = tmp_path / "merged.pdf"
+    temp_file = output.with_suffix(".tmp.pdf")
+
+    processed_files = []
+    cancellation_requested = False
+
+    def cancel_callback():
+        return cancellation_requested
+
+    def progress_callback(current, total, pdf_file):
+        nonlocal cancellation_requested
+
+        processed_files.append(pdf_file)
+
+        if current == 1:
+            cancellation_requested = True
+
+    result = merge_files(
+        [mock_pdf_1, mock_pdf_2],
+        output,
+        progress_callback=progress_callback,
+        cancel_callback=cancel_callback,
+    )
+
+    assert result is None
+    assert processed_files == [mock_pdf_1]
+    assert not output.exists()
+    assert not temp_file.exists()
+
+
 def test_merge_files_rejects_missing_input_file(tmp_path):
     good_file = tmp_path / "good.pdf"
     missing_file = tmp_path / "missing.pdf"
