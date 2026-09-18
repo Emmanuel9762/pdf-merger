@@ -91,89 +91,92 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(
             """
             QMainWindow {
-                background: #202124;
+                background: #181a1f;
             }
 
             QWidget {
-                color: #f1f3f4;
+                color: #f2f4f7;
                 font-size: 13px;
             }
 
             QLabel {
-                color: #f1f3f4;
+                color: #f2f4f7;
             }
 
             QListWidget {
-                background: #292a2d;
-                border: 1px solid #3c4043;
-                border-radius: 8px;
-                padding: 6px;
-                color: #f1f3f4;
+                background: #22252b;
+                border: 1px solid #3a3f47;
+                border-radius: 10px;
+                padding: 8px;
+                color: #f2f4f7;
                 outline: none;
             }
 
             QListWidget::item {
-                padding: 10px 8px;
-                border-radius: 6px;
-                color: #e8eaed;
+                padding: 11px 10px;
+                border-radius: 7px;
+                color: #e9edf2;
             }
 
             QListWidget::item:hover {
-                background: #333538;
+                background: #2d323a;
             }
 
             QListWidget::item:selected {
-                background: #3d5a80;
+                background: #365d91;
                 color: #ffffff;
             }
 
             QPushButton {
-                background: #303134;
-                border: 1px solid #4a4d51;
-                border-radius: 6px;
-                padding: 8px 14px;
-                color: #f1f3f4;
+                background: #292d34;
+                border: 1px solid #454b55;
+                border-radius: 7px;
+                padding: 9px 15px;
+                color: #f2f4f7;
                 min-height: 18px;
+                font-weight: 600;
             }
 
             QPushButton:hover {
-                background: #3c4043;
-                border-color: #6b7075;
+                background: #343a43;
+                border-color: #5b6470;
             }
 
             QPushButton:pressed {
-                background: #28292c;
+                background: #22262c;
             }
 
             QPushButton:disabled {
-                background: #292a2d;
-                border-color: #36383b;
-                color: #777b80;
+                background: #25282e;
+                border-color: #363a41;
+                color: #9aa1aa;
             }
 
             QProgressBar {
-                background: #292a2d;
-                border: 1px solid #3c4043;
-                border-radius: 6px;
-                min-height: 18px;
+                background: #22252b;
+                border: 1px solid #3a3f47;
+                border-radius: 7px;
+                min-height: 20px;
                 text-align: center;
-                color: #f1f3f4;
+                color: #f2f4f7;
+                font-weight: 600;
             }
 
             QProgressBar::chunk {
                 background: #4f8cff;
-                border-radius: 5px;
+                border-radius: 6px;
             }
 
             QMessageBox {
-                background: #202124;
+                background: #181a1f;
+                color: #f2f4f7;
             }
 
             QToolTip {
-                background: #303134;
-                color: #f1f3f4;
-                border: 1px solid #4a4d51;
-                padding: 5px;
+                background: #292d34;
+                color: #f2f4f7;
+                border: 1px solid #454b55;
+                padding: 6px;
             }
             """
         )
@@ -183,27 +186,27 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(20, 18, 20, 18)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(24, 22, 24, 22)
+        main_layout.setSpacing(14)
 
         title = QLabel("PDF Merger")
         title.setStyleSheet(
             """
             QLabel {
                 color: #ffffff;
-                font-size: 26px;
+                font-size: 28px;
                 font-weight: 700;
             }
             """
         )
 
         subtitle = QLabel(
-            "Add PDFs, drag to reorder them, then merge."
+            "Combine PDF files in the order you choose."
         )
         subtitle.setStyleSheet(
             """
             QLabel {
-                color: #aeb4bb;
+                color: #b7bec8;
                 font-size: 13px;
             }
             """
@@ -213,11 +216,14 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(subtitle)
 
         self.file_list = PDFListWidget(self)
-        self.file_list.setMinimumHeight(220)
+        self.file_list.setMinimumHeight(260)
 
         self.file_list.setSelectionMode(
             QListWidget.SingleSelection
         )
+
+        self.file_list.setAlternatingRowColors(False)
+        self.file_list.setSpacing(3)
 
         self.file_list.model().rowsMoved.connect(
             self.refresh_metadata
@@ -243,13 +249,14 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(button_layout)
 
         self.summary_label = QLabel(
-            "0 PDFs | 0 pages | 0 B"
+            "0 PDFs  •  0 pages  •  0 B"
         )
         self.summary_label.setStyleSheet(
             """
             QLabel {
-                color: #aeb4bb;
+                color: #b7bec8;
                 font-size: 12px;
+                padding: 2px 2px;
             }
             """
         )
@@ -259,13 +266,23 @@ class MainWindow(QMainWindow):
         output_layout = QHBoxLayout()
         output_layout.setSpacing(10)
 
-        output_layout.addWidget(QLabel("Output:"))
+        output_label = QLabel("Output")
+        output_label.setStyleSheet(
+            """
+            QLabel {
+                color: #9fa7b2;
+                font-weight: 600;
+            }
+            """
+        )
+
+        output_layout.addWidget(output_label)
 
         self.output_name = QLabel("merged.pdf")
         self.output_name.setStyleSheet(
             """
             QLabel {
-                color: #d8dde3;
+                color: #e4e8ed;
                 font-weight: 600;
             }
             """
@@ -291,8 +308,9 @@ class MainWindow(QMainWindow):
         self.status_label.setStyleSheet(
             """
             QLabel {
-                color: #d8dde3;
+                color: #dce1e7;
                 font-weight: 600;
+                padding: 2px;
             }
             """
         )
@@ -331,7 +349,7 @@ class MainWindow(QMainWindow):
             QPushButton:disabled {
                 background: #34445f;
                 border-color: #3b4d6a;
-                color: #8997ad;
+                color: #a3afc1;
             }
             """
         )
@@ -342,6 +360,31 @@ class MainWindow(QMainWindow):
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.setMinimumHeight(40)
         self.cancel_button.setEnabled(False)
+        self.cancel_button.setStyleSheet(
+            """
+            QPushButton {
+                background: #3a2d30;
+                border: 1px solid #69454b;
+                color: #f0dfe2;
+                font-weight: 600;
+            }
+
+            QPushButton:hover {
+                background: #49363a;
+                border-color: #80545c;
+            }
+
+            QPushButton:pressed {
+                background: #302427;
+            }
+
+            QPushButton:disabled {
+                background: #25282e;
+                border-color: #363a41;
+                color: #9aa1aa;
+            }
+            """
+        )
         self.cancel_button.clicked.connect(self.cancel_merge)
 
         main_layout.addWidget(self.cancel_button)
@@ -416,8 +459,8 @@ class MainWindow(QMainWindow):
             total_size += info.size_bytes
 
         self.summary_label.setText(
-            f"{len(ordered_files)} PDFs | "
-            f"{total_pages} pages | "
+            f"{len(ordered_files)} PDFs  •  "
+            f"{total_pages} pages  •  "
             f"{self.format_size(total_size)}"
         )
 

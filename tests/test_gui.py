@@ -62,7 +62,7 @@ def mock_pdfs():
 
 def test_initial_gui_state(window):
     assert window.file_list.count() == 0
-    assert window.summary_label.text() == "0 PDFs | 0 pages | 0 B"
+    assert window.summary_label.text() == "0 PDFs  •  0 pages  •  0 B"
     assert window.status_label.text() == "Ready."
     assert window.progress_bar.value() == 0
 
@@ -105,7 +105,7 @@ def test_add_pdf_files(window, mock_pdfs):
 
     assert window.file_list.count() == 2
     assert window.pdf_files == set(mock_pdfs)
-    assert window.summary_label.text().startswith("2 PDFs |")
+    assert window.summary_label.text().startswith("2 PDFs  •  ")
 
 
 def test_duplicate_pdf_files_are_ignored(window, mock_pdfs):
@@ -149,7 +149,7 @@ def test_clear_files(window, mock_pdfs):
 
     assert window.file_list.count() == 0
     assert window.pdf_files == set()
-    assert window.summary_label.text() == "0 PDFs | 0 pages | 0 B"
+    assert window.summary_label.text() == "0 PDFs  •  0 pages  •  0 B"
 
 
 def test_get_output_file_adds_pdf_extension(window, tmp_path):
