@@ -48,12 +48,12 @@ class MergeWorker(QObject):
             cancel_callback=self.is_cancelled,
         )
 
-        if total_pages is None:
-            if self.is_cancelled():
-                self.cancelled.emit()
+        if total_pages is not None:
+            self.finished.emit(
+                total_pages,
+                self.output_file
+            )
             return
 
-        self.finished.emit(
-            total_pages,
-            self.output_file
-        )
+        if self.is_cancelled():
+            self.cancelled.emit()

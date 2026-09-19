@@ -259,6 +259,8 @@ def test_merge_worker_success_emits_finished_and_total_pages():
     saw_merge_files = {}
     progress_events = []
     finished_events = []
+    failed_events = []
+    cancelled_events = []
 
     def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
         saw_merge_files["files"] = list(files)
@@ -270,6 +272,8 @@ def test_merge_worker_success_emits_finished_and_total_pages():
 
     worker.progress.connect(lambda current, total, pdf_file: progress_events.append((current, total, pdf_file)))
     worker.finished.connect(lambda total_pages, result_path: finished_events.append((total_pages, result_path)))
+    worker.failed.connect(lambda error_message, current_file: failed_events.append((error_message, current_file)))
+    worker.cancelled.connect(lambda: cancelled_events.append(True))
 
     monkeypatch = pytest.MonkeyPatch()
     try:
@@ -283,6 +287,8 @@ def test_merge_worker_success_emits_finished_and_total_pages():
     assert saw_merge_files == {"files": pdf_files, "target": output_file}
     assert progress_events == [(1, 2, pdf_files[0])]
     assert finished_events == [(12, output_file)]
+    assert failed_events == []
+    assert cancelled_events == []
 
 
 def test_merge_worker_tracks_cancellation_state():
@@ -303,8 +309,10 @@ def test_merge_worker_does_not_emit_finished_when_cancelled():
     worker = MergeWorker(pdf_files, output_file)
 
     finished_events = []
+    failed_events = []
     cancelled_events = []
     worker.finished.connect(lambda total_pages, result_path: finished_events.append((total_pages, result_path)))
+    worker.failed.connect(lambda error_message, current_file: failed_events.append((error_message, current_file)))
     worker.cancelled.connect(lambda: cancelled_events.append(True))
 
     def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
@@ -324,6 +332,7 @@ def test_merge_worker_does_not_emit_finished_when_cancelled():
         monkeypatch.undo()
 
     assert finished_events == []
+    assert failed_events == []
     assert cancelled_events == [True]
 
 
@@ -333,7 +342,11 @@ def test_merge_worker_failure_emits_detailed_error_and_file():
     worker = MergeWorker(pdf_files, output_file)
 
     failed_events = []
+    finished_events = []
+    cancelled_events = []
     worker.failed.connect(lambda error_message, current_file: failed_events.append((error_message, current_file)))
+    worker.finished.connect(lambda total_pages, result_path: finished_events.append((total_pages, result_path)))
+    worker.cancelled.connect(lambda: cancelled_events.append(True))
 
     def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
         error_callback("Password required", files[0])
@@ -348,7 +361,9 @@ def test_merge_worker_failure_emits_detailed_error_and_file():
     finally:
         monkeypatch.undo()
 
+    assert finished_events == []
     assert failed_events == [("Password required", pdf_files[0])]
+    assert cancelled_events == []
 
 
 def test_merge_worker_progress_forwards_values_unchanged():
