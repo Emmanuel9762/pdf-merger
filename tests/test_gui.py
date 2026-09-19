@@ -5,7 +5,8 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtCore import QEventLoop, QThread, QTimer
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication
 
 from gui.app import MainWindow
@@ -98,6 +99,40 @@ def test_merge_state_restores_controls(window):
     assert window.merge_button.isEnabled()
     assert not window.cancel_button.isEnabled()
     assert window.file_list.isEnabled()
+
+
+def test_close_event_is_ignored_during_merge(window, monkeypatch):
+    warning_shown = False
+
+    def fake_warning(*args, **kwargs):
+        nonlocal warning_shown
+        warning_shown = True
+
+    monkeypatch.setattr(
+        "gui.app.QMessageBox.warning",
+        fake_warning,
+    )
+
+    window.merge_thread = QThread()
+    window.merge_thread.start()
+
+    event = QCloseEvent()
+
+    window.closeEvent(event)
+
+    assert warning_shown
+    assert not event.isAccepted()
+
+    window.merge_thread.quit()
+    window.merge_thread.wait()
+
+
+def test_close_event_is_accepted_when_no_merge_is_running(window):
+    event = QCloseEvent()
+
+    window.closeEvent(event)
+
+    assert event.isAccepted()
 
 
 def test_add_pdf_files(window, mock_pdfs):

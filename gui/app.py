@@ -753,7 +753,6 @@ class MainWindow(QMainWindow):
                 "Merge In Progress",
                 "Please wait for the merge to finish."
             )
-
             event.ignore()
             return
 
