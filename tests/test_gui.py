@@ -231,6 +231,61 @@ def test_clear_files(window, mock_pdfs):
     assert window.summary_label.text() == "0 PDFs  •  0 pages  •  0 B"
 
 
+def test_resolve_output_file_uses_output_directory_for_relative_name(
+    window,
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.chdir(tmp_path)
+
+    window.output_name.setText("merged")
+
+    output_path = window.resolve_output_file()
+
+    assert output_path == Path("output/merged.pdf")
+    assert not (tmp_path / "output").exists()
+
+
+def test_get_output_file_creates_parent_directory(
+    window,
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.chdir(tmp_path)
+
+    window.output_name.setText("merged")
+
+    output_path = window.get_output_file()
+
+    assert output_path == Path("output/merged.pdf")
+    assert (tmp_path / "output").is_dir()
+
+
+def test_resolve_output_file_preserves_absolute_path(
+    window,
+    tmp_path,
+):
+    output_path = tmp_path / "exports" / "merged.pdf"
+
+    window.output_name.setText(str(output_path))
+
+    assert window.resolve_output_file() == output_path
+
+
+def test_resolve_output_file_adds_pdf_extension(
+    window,
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.chdir(tmp_path)
+
+    window.output_name.setText("final")
+
+    assert window.resolve_output_file() == (
+        Path("output") / "final.pdf"
+    )
+
+
 def test_get_output_file_adds_pdf_extension(window, tmp_path):
     output_path = tmp_path / "merged"
 

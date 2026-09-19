@@ -530,7 +530,7 @@ class MainWindow(QMainWindow):
 
         self.output_name.setText(str(output_path))
 
-    def get_output_file(self):
+    def resolve_output_file(self):
         output_path = Path(self.output_name.text())
 
         if not output_path.is_absolute():
@@ -538,6 +538,11 @@ class MainWindow(QMainWindow):
 
         if output_path.suffix.lower() != ".pdf":
             output_path = output_path.with_suffix(".pdf")
+
+        return output_path
+
+    def get_output_file(self):
+        output_path = self.resolve_output_file()
 
         output_path.parent.mkdir(
             parents=True,
