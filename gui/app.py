@@ -762,16 +762,3 @@ class MainWindow(QMainWindow):
             return
 
         event.accept()
-
-
-def run_gui():
-    app = QApplication([])
-
-    window = MainWindow()
-    window.show()
-
-    return app.exec()
-
-
-if __name__ == "__main__":
-    raise SystemExit(run_gui())

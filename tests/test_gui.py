@@ -135,6 +135,49 @@ def test_close_event_is_accepted_when_no_merge_is_running(window):
     assert event.isAccepted()
 
 
+def test_gui_main_creates_application(monkeypatch):
+    import gui.main
+
+    created = {}
+
+    class FakeApplication:
+        def __init__(self, args):
+            created["args"] = args
+
+        def exec(self):
+            return 17
+
+    class FakeWindow:
+        def __init__(self):
+            created["window"] = self
+
+        def show(self):
+            created["shown"] = True
+
+    monkeypatch.setattr(
+        gui.main,
+        "QApplication",
+        FakeApplication,
+    )
+    monkeypatch.setattr(
+        gui.main,
+        "MainWindow",
+        FakeWindow,
+    )
+    monkeypatch.setattr(
+        gui.main.sys,
+        "argv",
+        ["gui_launcher.py"],
+    )
+
+    result = gui.main.main()
+
+    assert result == 17
+    assert created["args"] == ["gui_launcher.py"]
+    assert isinstance(created["window"], FakeWindow)
+    assert created["shown"] is True
+
+
 def test_add_pdf_files(window, mock_pdfs):
     window.add_pdf_files(mock_pdfs)
 
