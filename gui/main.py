@@ -12,3 +12,7 @@ def main():
     window.show()
 
     return app.exec()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
