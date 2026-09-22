@@ -40,7 +40,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_output_file(output_path=None):
+def get_output_file(output_path=None, input_func=input):
     if output_path:
         output_file = Path(output_path)
 
@@ -50,7 +50,7 @@ def get_output_file(output_path=None):
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         if output_file.exists():
-            choice = input(
+            choice = input_func(
                 f"\nFile already exists: {output_file}\n"
                 "Overwrite it? (y/n): "
             ).lower()
@@ -64,7 +64,7 @@ def get_output_file(output_path=None):
     output_folder = Path("output")
 
     while True:
-        output_name = input("\nEnter output filename: ").strip()
+        output_name = input_func("\nEnter output filename: ").strip()
 
         if not output_name:
             print("Filename cannot be empty.")
@@ -76,7 +76,7 @@ def get_output_file(output_path=None):
         output_file = output_folder / output_name
 
         if output_file.exists():
-            choice = input(
+            choice = input_func(
                 f"\nFile already exists: {output_file}\n"
                 "Overwrite it? (y/n): "
             ).lower()
@@ -136,7 +136,7 @@ def run(args, input_func=input):
     for index, pdf_file in enumerate(selected_files, start=1):
         print(f"{index}. {pdf_file.name}")
 
-    output_file = get_output_file(args.output)
+    output_file = get_output_file(args.output, input_func=input_func)
 
     if output_file is None:
         return 1
