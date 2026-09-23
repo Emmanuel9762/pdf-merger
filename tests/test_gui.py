@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication
 
 from gui.app import MainWindow
 from gui.worker import MergeWorker
+from pdf_merger import resolve_output_path
 
 
 @pytest.fixture(scope="session")
@@ -286,7 +287,7 @@ def test_resolve_output_file_uses_output_directory_for_relative_name(
     output_path = window.resolve_output_file()
 
     assert output_path == Path("output/merged.pdf")
-    assert not (tmp_path / "output").exists()
+    assert (tmp_path / "output").is_dir()
 
 
 def test_get_output_file_creates_parent_directory(
@@ -337,6 +338,14 @@ def test_get_output_file_adds_pdf_extension(window, tmp_path):
     result = window.get_output_file()
 
     assert result == tmp_path / "merged.pdf"
+
+
+def test_resolve_output_file_matches_shared_policy(window, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    window.output_name.setText("merged")
+
+    assert window.resolve_output_file() == Path("output/merged.pdf")
+    assert window.resolve_output_file() == resolve_output_path("merged")
 
 
 def test_get_output_file_preserves_pdf_extension(window, tmp_path):

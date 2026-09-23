@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from pdf_merger import get_pdf_info
+from pdf_merger import get_pdf_info, resolve_output_path
 from gui.worker import MergeWorker
 
 
@@ -531,25 +531,10 @@ class MainWindow(QMainWindow):
         self.output_name.setText(str(output_path))
 
     def resolve_output_file(self):
-        output_path = Path(self.output_name.text())
-
-        if not output_path.is_absolute():
-            output_path = Path("output") / output_path
-
-        if output_path.suffix.lower() != ".pdf":
-            output_path = output_path.with_suffix(".pdf")
-
-        return output_path
+        return resolve_output_path(self.output_name.text())
 
     def get_output_file(self):
-        output_path = self.resolve_output_file()
-
-        output_path.parent.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-        return output_path
+        return self.resolve_output_file()
 
     def start_merge(self):
         pdf_files = self.get_ordered_files()

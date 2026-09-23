@@ -7,6 +7,7 @@ from pdf_merger import (
     get_cli_files,
     get_merge_order,
     merge_files,
+    resolve_output_path,
 )
 
 
@@ -42,12 +43,7 @@ def parse_args():
 
 def get_output_file(output_path=None, input_func=input):
     if output_path:
-        output_file = Path(output_path)
-
-        if not output_file.suffix:
-            output_file = output_file.with_suffix(".pdf")
-
-        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file = resolve_output_path(output_path)
 
         if output_file.exists():
             choice = input_func(
@@ -61,8 +57,6 @@ def get_output_file(output_path=None, input_func=input):
 
         return output_file
 
-    output_folder = Path("output")
-
     while True:
         output_name = input_func("\nEnter output filename: ").strip()
 
@@ -70,10 +64,7 @@ def get_output_file(output_path=None, input_func=input):
             print("Filename cannot be empty.")
             continue
 
-        if not output_name.lower().endswith(".pdf"):
-            output_name += ".pdf"
-
-        output_file = output_folder / output_name
+        output_file = resolve_output_path(output_name)
 
         if output_file.exists():
             choice = input_func(
