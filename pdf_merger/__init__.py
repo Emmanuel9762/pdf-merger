@@ -8,6 +8,8 @@ from .merger import (
     merge_pdfs,
 )
 
+from .output_path import resolve_output_path
+
 from .pdf_info import (
     PDFInfo,
     get_pdf_info,
