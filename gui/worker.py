@@ -27,6 +27,8 @@ class MergeWorker(QObject):
 
     @Slot()
     def run(self):
+        failure = None
+
         def report_progress(current, total, pdf_file):
             self.progress.emit(
                 current,
@@ -35,18 +37,24 @@ class MergeWorker(QObject):
             )
 
         def report_error(error_message, current_file):
-            self.failed.emit(
-                error_message,
-                current_file
-            )
+            nonlocal failure
+            failure = (error_message, current_file)
 
-        total_pages = merge_files(
-            self.pdf_files,
-            self.output_file,
-            progress_callback=report_progress,
-            error_callback=report_error,
-            cancel_callback=self.is_cancelled,
-        )
+        try:
+            total_pages = merge_files(
+                self.pdf_files,
+                self.output_file,
+                progress_callback=report_progress,
+                error_callback=report_error,
+                cancel_callback=self.is_cancelled,
+            )
+        except Exception as error:
+            failure = (str(error), None)
+            total_pages = None
+
+        if failure is not None:
+            self.failed.emit(*failure)
+            return
 
         if total_pages is not None:
             self.finished.emit(
@@ -57,3 +65,6 @@ class MergeWorker(QObject):
 
         if self.is_cancelled():
             self.cancelled.emit()
+            return
+
+        self.failed.emit("Merge failed without an error detail.", None)
