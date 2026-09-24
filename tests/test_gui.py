@@ -473,6 +473,34 @@ def test_merge_worker_failure_emits_detailed_error_and_file():
     assert cancelled_events == []
 
 
+@pytest.mark.parametrize("outcome", ["silent_failure", "failure_and_cancel", "exception"])
+def test_merge_worker_emits_one_terminal_signal_on_failure(monkeypatch, outcome):
+    import gui.worker as worker_module
+
+    pdf_file = Path("input/bad.pdf")
+    worker = MergeWorker([pdf_file], Path("output/merged.pdf"))
+    events = []
+    worker.finished.connect(lambda *_: events.append("finished"))
+    worker.failed.connect(lambda message, file: events.append(("failed", message, file)))
+    worker.cancelled.connect(lambda: events.append("cancelled"))
+
+    def fake_merge_files(files, target, progress_callback=None, error_callback=None, cancel_callback=None):
+        if outcome == "failure_and_cancel":
+            error_callback("bad PDF", pdf_file)
+            worker.cancel()
+        elif outcome == "exception":
+            raise RuntimeError("unexpected failure")
+        return None
+
+    monkeypatch.setattr(worker_module, "merge_files", fake_merge_files)
+    worker.run()
+
+    assert len(events) == 1
+    assert events[0][0] == "failed"
+    if outcome == "failure_and_cancel":
+        assert events == [("failed", "bad PDF", pdf_file)]
+
+
 def test_merge_worker_progress_forwards_values_unchanged():
     pdf_files = [Path("input/test.pdf")]
     output_file = Path("output/merged.pdf")

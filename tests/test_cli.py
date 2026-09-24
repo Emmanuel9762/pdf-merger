@@ -149,6 +149,24 @@ def test_run_rejects_existing_output(
     assert output_file.read_text() == "existing output"
 
 
+@pytest.mark.parametrize("pages, expected_status", [(2, 0), (None, 1)])
+def test_run_uses_merge_files_boundary(monkeypatch, tmp_path, mock_pdf_1, pages, expected_status):
+    import main as cli
+
+    output = tmp_path / "merged.pdf"
+    calls = []
+
+    def fake_merge_files(files, target):
+        calls.append((files, target))
+        return pages
+
+    monkeypatch.setattr(cli, "merge_files", fake_merge_files)
+    args = Namespace(files=[str(mock_pdf_1)], input="input", output=str(output), order=None)
+
+    assert run(args) == expected_status
+    assert calls == [([mock_pdf_1], output)]
+
+
 @pytest.fixture
 def mock_pdf_1(tmp_path):
     pdf_file = tmp_path / "mock_pdf_1.pdf"
