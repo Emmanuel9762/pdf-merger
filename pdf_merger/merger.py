@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+from collections.abc import Callable, Sequence
 
 from pypdf import PdfWriter
 
@@ -136,15 +138,13 @@ def merge_pdfs(
     cancel_callback=None,
 ):
     writer = PdfWriter()
-    temp_file = output_file.with_suffix(".tmp.pdf")
+    temp_file = None
     current_file = None
     total_files = len(pdf_files)
 
     try:
         for index, pdf_file in enumerate(pdf_files, start=1):
             if cancel_callback and cancel_callback():
-                if temp_file.exists():
-                    temp_file.unlink()
                 return None
 
             current_file = pdf_file
@@ -159,9 +159,21 @@ def merge_pdfs(
                     pdf_file
                 )
 
+        if cancel_callback and cancel_callback():
+            return None
+
         total_pages = len(writer.pages)
         output_file.parent.mkdir(parents=True, exist_ok=True)
+        # Own a unique sibling so replacement stays atomic and cleanup cannot
+        # delete another request's temporary file (or an input with that name).
+        with NamedTemporaryFile(
+            dir=output_file.parent, prefix=f".{output_file.name}.",
+            suffix=".tmp.pdf", delete=False,
+        ) as temporary:
+            temp_file = Path(temporary.name)
         writer.write(temp_file)
+        if cancel_callback and cancel_callback():
+            return None
         temp_file.replace(output_file)
 
     except Exception as error:
@@ -172,7 +184,7 @@ def merge_pdfs(
 
         print(f"Reason: {error}")
 
-        if temp_file.exists():
+        if temp_file is not None and temp_file.exists():
             temp_file.unlink()
 
         if error_callback:
@@ -182,6 +194,13 @@ def merge_pdfs(
             )
 
         return None
+
+    finally:
+        try:
+            if temp_file is not None and temp_file.exists():
+                temp_file.unlink()
+        finally:
+            writer.close()
 
     return total_pages
 
@@ -227,12 +246,25 @@ def apply_merge_order(pdf_files, order):
 
 
 def merge_files(
-    pdf_files,
-    output_file,
-    progress_callback=None,
-    error_callback=None,
-    cancel_callback=None,
-):
+    pdf_files: Sequence[Path],
+    output_file: Path,
+    progress_callback: Callable[[int, int, Path], None] | None = None,
+    error_callback: Callable[[str, Path | None], None] | None = None,
+    cancel_callback: Callable[[], bool] | None = None,
+) -> int | None:
+    """Merge inputs in order, returning page count only after atomic publication.
+
+    Progress runs synchronously after each append with (1-based index, input
+    count, input path); even the final progress event is not completion.
+    Validation/I/O failure returns None and reports (message, current input)
+    once when an error callback is supplied. Validation precedes cancellation.
+    Cancellation returns None without an error; it is polled before each input,
+    before writing, and immediately before publication. Publication is the
+    commit point: requests arriving afterwards cannot undo a successful merge.
+    Existing output is preserved on failure/cancellation and only this call's
+    temporary file is removed. Callbacks should not raise; exceptions from the
+    error callback or an unsuccessful filesystem cleanup propagate to callers.
+    """
     if not validate_merge_request(
         pdf_files,
         output_file,
