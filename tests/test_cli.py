@@ -156,7 +156,7 @@ def test_run_uses_merge_files_boundary(monkeypatch, tmp_path, mock_pdf_1, pages,
     output = tmp_path / "merged.pdf"
     calls = []
 
-    def fake_merge_files(files, target):
+    def fake_merge_files(files, target, error_callback=None):
         calls.append((files, target))
         return pages
 
@@ -165,6 +165,25 @@ def test_run_uses_merge_files_boundary(monkeypatch, tmp_path, mock_pdf_1, pages,
 
     assert run(args) == expected_status
     assert calls == [([mock_pdf_1], output)]
+
+
+def test_run_reports_merge_failure_details(monkeypatch, tmp_path, mock_pdf_1, capsys):
+    import main as cli
+
+    output = tmp_path / "merged.pdf"
+
+    def fake_merge_files(files, target, error_callback=None):
+        error_callback("Password required", files[0])
+        return None
+
+    monkeypatch.setattr(cli, "merge_files", fake_merge_files)
+    args = Namespace(files=[str(mock_pdf_1)], input="input", output=str(output), order=None)
+
+    assert run(args) == 1
+
+    captured = capsys.readouterr()
+    assert "Merge failed while processing: mock_pdf_1.pdf" in captured.out
+    assert "Reason: Password required" in captured.out
 
 
 @pytest.fixture

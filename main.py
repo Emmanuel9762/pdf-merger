@@ -132,12 +132,31 @@ def run(args, input_func=input):
     if output_file is None:
         return 1
 
+    merge_error = None
+
+    def report_error(error_message, current_file):
+        nonlocal merge_error
+        merge_error = (error_message, current_file)
+
     total_pages = merge_files(
-    selected_files,
-    output_file
-)
+        selected_files,
+        output_file,
+        error_callback=report_error,
+    )
 
     if total_pages is None:
+        if merge_error is None:
+            print("Merge failed.")
+        else:
+            error_message, current_file = merge_error
+
+            if current_file is not None:
+                print(f"Merge failed while processing: {Path(current_file).name}")
+            else:
+                print("Merge failed.")
+
+            print(f"Reason: {error_message}")
+
         return 1
 
     print("\nPDFs merged successfully!")
