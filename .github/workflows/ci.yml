@@ -47,3 +47,16 @@ jobs:
             echo "Expected packaged GUI to remain running until timeout; got status $status."
             exit 1
           fi
+
+      - name: Record build checksum
+        run: sha256sum dist/pdf-merger > dist/pdf-merger.sha256
+
+      - name: Upload Linux build
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-merger-linux-x86_64
+          path: |
+            dist/pdf-merger
+            dist/pdf-merger.sha256
+          if-no-files-found: error
+          retention-days: 7

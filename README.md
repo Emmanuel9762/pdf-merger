@@ -119,7 +119,7 @@ PyInstaller is included in the development requirements.
 Build the Linux executable with:
 
 ```
-python3 -m PyInstaller --clean --noconfirm pdf_merger.spec
+.venv/bin/python -m PyInstaller --clean --noconfirm pdf_merger.spec
 ```
 The executable is created at:
 
@@ -127,6 +127,18 @@ The executable is created at:
 dist/pdf-merger
 ```
 The generated `build/` and `dist/` directories are ignored by Git.
+
+Use the same virtual environment for installation, tests, and the build. A system
+Python without PyInstaller will report `No module named PyInstaller`, even when
+another environment has it installed.
+
+For a local release check, run the tests and build, then launch the executable
+on a Linux desktop and merge two sample PDFs. Confirm page count, order, and
+output location; cancel a longer merge and confirm no partial output remains.
+CI builds on Linux, checks that the packaged GUI stays running in offscreen
+mode, and uploads the executable with a SHA-256 checksum as a short-lived
+workflow artifact. The offscreen check cannot confirm the window's visual
+appearance or compatibility with every Linux distribution.
 
 ## Project Structure
 
