@@ -186,6 +186,19 @@ def test_run_reports_merge_failure_details(monkeypatch, tmp_path, mock_pdf_1, ca
     assert "Reason: Password required" in captured.out
 
 
+@pytest.mark.parametrize("error_type", [EOFError, KeyboardInterrupt])
+def test_main_handles_interrupted_input(monkeypatch, capsys, error_type):
+    import main as cli
+
+    def interrupt():
+        raise error_type()
+
+    monkeypatch.setattr(cli, "parse_args", interrupt)
+
+    assert cli.main() == 130
+    assert "Merge cancelled." in capsys.readouterr().out
+
+
 @pytest.fixture
 def mock_pdf_1(tmp_path):
     pdf_file = tmp_path / "mock_pdf_1.pdf"

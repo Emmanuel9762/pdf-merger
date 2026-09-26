@@ -168,8 +168,12 @@ def run(args, input_func=input):
 
 
 def main():
-    args = parse_args()
-    return run(args)
+    try:
+        args = parse_args()
+        return run(args)
+    except (EOFError, KeyboardInterrupt):
+        print("\nMerge cancelled.")
+        return 130
 
 
 if __name__ == "__main__":
