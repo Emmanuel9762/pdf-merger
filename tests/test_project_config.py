@@ -14,7 +14,7 @@ def test_project_metadata_is_defined():
     project = config["project"]
 
     assert project["name"] == "pdf-merger"
-    assert project["version"] == "0.1.0"
+    assert project["version"] == "0.1.0rc1"
     assert project["requires-python"] == ">=3.12"
 
 

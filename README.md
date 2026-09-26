@@ -150,10 +150,14 @@ pdf-merger/
 │   └── worker.py
 ├── pdf_merger/
 │   ├── merger.py
+│   ├── output_path.py
 │   └── pdf_info.py
 ├── tests/
+│   ├── test_cli.py
 │   ├── test_gui.py
+│   ├── test_merge_contract.py
 │   ├── test_merger.py
+│   ├── test_output_path.py
 │   ├── test_packaging.py
 │   ├── test_pdf_info.py
 │   └── test_project_config.py
@@ -182,4 +186,6 @@ The application is developed and tested on Linux.
 The PyInstaller configuration currently targets a standalone Linux executable. Cross-platform packaging has not yet been configured.
 
 ## Status
-The project is currently in active development.
+Version `0.1.0rc1` is a Linux release candidate. See [RELEASE.md](RELEASE.md)
+for validation and known platform limits. No public release is implied by
+this version number; the packaged executable still needs a desktop check.
