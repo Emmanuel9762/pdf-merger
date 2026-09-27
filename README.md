@@ -40,6 +40,9 @@ Clone the repository and create a virtual environment:
 python3 -m venv .venv
 source .venv/bin/activate
 ```
+In fish, use `source .venv/bin/activate.fish` instead. If your existing
+environment is named `venv`, substitute `venv` for `.venv`. You can also
+run `venv/bin/python -m pytest -q` directly without activating it.
 Install the application dependencies:
 
 ```
