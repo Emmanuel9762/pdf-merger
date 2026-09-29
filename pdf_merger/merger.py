@@ -7,10 +7,13 @@ from pypdf import PdfWriter
 
 
 def find_pdfs(input_folder):
-    return [
-        file for file in input_folder.iterdir()
-        if file.is_file() and file.suffix.lower() == ".pdf"
-    ]
+    return sorted(
+        (
+            file for file in input_folder.iterdir()
+            if file.is_file() and file.suffix.lower() == ".pdf"
+        ),
+        key=lambda file: (file.name.casefold(), file.name),
+    )
 
 
 def is_valid_pdf(file_path):
