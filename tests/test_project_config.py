@@ -5,13 +5,15 @@ import tomllib
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_project_metadata_is_defined():
+def load_project_config():
     pyproject = PROJECT_ROOT / "pyproject.toml"
 
     with pyproject.open("rb") as file:
-        config = tomllib.load(file)
+        return tomllib.load(file)
 
-    project = config["project"]
+
+def test_project_metadata_is_defined():
+    project = load_project_config()["project"]
 
     assert project["name"] == "pdf-merger"
     assert project["version"] == "0.1.0rc1"
@@ -19,12 +21,7 @@ def test_project_metadata_is_defined():
 
 
 def test_runtime_dependencies_are_declared():
-    pyproject = PROJECT_ROOT / "pyproject.toml"
-
-    with pyproject.open("rb") as file:
-        config = tomllib.load(file)
-
-    dependencies = config["project"]["dependencies"]
+    dependencies = load_project_config()["project"]["dependencies"]
 
     assert any(
         dependency.startswith("pypdf")
@@ -38,11 +35,15 @@ def test_runtime_dependencies_are_declared():
 
 
 def test_console_entry_point_is_defined():
-    pyproject = PROJECT_ROOT / "pyproject.toml"
-
-    with pyproject.open("rb") as file:
-        config = tomllib.load(file)
-
-    scripts = config["project"]["scripts"]
+    scripts = load_project_config()["project"]["scripts"]
 
     assert scripts["pdf-merger"] == "gui.main:main"
+
+
+def test_release_version_is_consistent_across_docs():
+    version = load_project_config()["project"]["version"]
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    release_notes = (PROJECT_ROOT / "RELEASE.md").read_text(encoding="utf-8")
+
+    assert f"Version `{version}`" in readme
+    assert release_notes.startswith(f"# PDF Merger {version}\n")
