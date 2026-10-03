@@ -36,10 +36,19 @@ def test_release_workflow_validates_before_publishing():
     tests = workflow.index("python -m pytest -q")
     build = workflow.index("python -m PyInstaller")
     smoke = workflow.index("timeout 3s ./dist/pdf-merger")
-    checksum = workflow.index("sha256sum pdf-merger")
+    checksum = workflow.index('sha256sum "$asset"')
     publish = workflow.index("gh release")
 
     assert tests < build < smoke < checksum < publish
+
+
+def test_release_workflow_uses_versioned_linux_assets():
+    workflow = read_release_workflow()
+
+    assert 'asset="pdf-merger-linux-x86_64-${version}"' in workflow
+    assert 'echo "RELEASE_ASSET=$asset" >> "$GITHUB_ENV"' in workflow
+    assert '"dist/$RELEASE_ASSET"' in workflow
+    assert '"dist/$RELEASE_ASSET.sha256"' in workflow
 
 
 def test_release_workflow_supports_safe_reruns():

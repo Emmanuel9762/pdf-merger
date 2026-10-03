@@ -74,10 +74,21 @@ jobs:
             exit 1
           fi
 
-      - name: Create checksum
+      - name: Prepare versioned release assets
+        shell: bash
         run: |
-          cd dist
-          sha256sum pdf-merger > pdf-merger.sha256
+          version="${GITHUB_REF_NAME#v}"
+          asset="pdf-merger-linux-x86_64-${version}"
+
+          cp dist/pdf-merger "dist/$asset"
+          chmod +x "dist/$asset"
+
+          (
+            cd dist
+            sha256sum "$asset" > "$asset.sha256"
+          )
+
+          echo "RELEASE_ASSET=$asset" >> "$GITHUB_ENV"
 
       - name: Publish GitHub release
         env:
@@ -93,13 +104,13 @@ jobs:
 
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" \
-              dist/pdf-merger \
-              dist/pdf-merger.sha256 \
+              "dist/$RELEASE_ASSET" \
+              "dist/$RELEASE_ASSET.sha256" \
               --clobber
           else
             gh release create "$GITHUB_REF_NAME" \
-              dist/pdf-merger \
-              dist/pdf-merger.sha256 \
+              "dist/$RELEASE_ASSET" \
+              "dist/$RELEASE_ASSET.sha256" \
               --title "PDF Merger $GITHUB_REF_NAME" \
               --generate-notes \
               $prerelease_flag
