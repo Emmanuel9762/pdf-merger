@@ -43,6 +43,21 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -q
 
+      - name: Build Python distributions
+        run: python -m build
+
+      - name: Validate Python distributions
+        run: python -m twine check dist/*
+
+      - name: Verify wheel installs cleanly
+        shell: bash
+        run: |
+          python -m venv .wheel-venv
+          .wheel-venv/bin/python -m pip install --upgrade pip
+          .wheel-venv/bin/python -m pip install dist/*.whl
+          .wheel-venv/bin/python -c "import importlib.metadata; import pdf_merger; import gui.main; print(importlib.metadata.version('pdf-merger'))"
+          test -x .wheel-venv/bin/pdf-merger
+
       - name: Smoke test CLI
         run: python main.py --help
 
