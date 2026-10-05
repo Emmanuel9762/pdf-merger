@@ -33,23 +33,8 @@ jobs:
           python -m pip install -e .
           python -m pip check
 
-      - name: Verify tag matches project version
-        shell: bash
-        run: |
-          project_version=$(python - <<'PY'
-          import tomllib
-          from pathlib import Path
-
-          with Path("pyproject.toml").open("rb") as file:
-              print(tomllib.load(file)["project"]["version"])
-          PY
-          )
-          tag_version="${GITHUB_REF_NAME#v}"
-
-          if [ "$tag_version" != "$project_version" ]; then
-            echo "Tag version $tag_version does not match project version $project_version."
-            exit 1
-          fi
+      - name: Validate release metadata and tag
+        run: python scripts/release_preflight.py --tag "$GITHUB_REF_NAME"
 
       - name: Run tests
         env:

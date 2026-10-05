@@ -38,6 +38,9 @@ jobs:
       - name: Smoke test imports
         run: python -c "import pdf_merger; import gui.main"
 
+      - name: Validate release metadata
+        run: python scripts/release_preflight.py
+
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen
