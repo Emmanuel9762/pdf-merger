@@ -114,7 +114,7 @@ Run the complete test suite:
 ```
 python3 -m pytest -q
 ```
-The project currently contains tests covering the merger, PDF metadata handling, GUI behavior, project configuration, and packaging configuration.
+The project currently contains tests covering the merger, PDF metadata handling, GUI behavior, project configuration, packaging, release paths, and release automation.
 
 ## Building the Standalone Executable
 PyInstaller is included in the development requirements.
@@ -135,13 +135,18 @@ Use the same virtual environment for installation, tests, and the build. A syste
 Python without PyInstaller will report `No module named PyInstaller`, even when
 another environment has it installed.
 
-For a local release check, run the tests and build, then launch the executable
-on a Linux desktop and merge two sample PDFs. Confirm page count, order, and
-output location; cancel a longer merge and confirm no partial output remains.
-CI builds on Linux, checks that the packaged GUI stays running in offscreen
-mode, and uploads the executable with a SHA-256 checksum as a short-lived
-workflow artifact. The offscreen check cannot confirm the window's visual
-appearance or compatibility with every Linux distribution.
+For a local release check, run the reusable preflight and tests before building:
+
+```
+python3 scripts/release_preflight.py
+python3 -m pytest -q
+```
+
+CI builds on Linux, validates Python distributions, checks that the packaged GUI
+stays running in offscreen mode, and uploads the executable with a SHA-256
+checksum. Tagged releases publish versioned Linux assets automatically. The
+offscreen check cannot confirm the window's visual appearance or compatibility
+with every Linux distribution.
 
 ## Project Structure
 
@@ -155,6 +160,8 @@ pdf-merger/
 │   ├── merger.py
 │   ├── output_path.py
 │   └── pdf_info.py
+├── scripts/
+│   └── release_preflight.py
 ├── tests/
 │   ├── test_cli.py
 │   ├── test_gui.py
@@ -163,7 +170,9 @@ pdf-merger/
 │   ├── test_output_path.py
 │   ├── test_packaging.py
 │   ├── test_pdf_info.py
-│   └── test_project_config.py
+│   ├── test_project_config.py
+│   ├── test_release_preflight.py
+│   └── test_release_workflow.py
 ├── input/
 ├── main.py
 ├── gui_launcher.py
@@ -186,9 +195,8 @@ The GUI performs PDF merging in a background thread so the interface remains res
 ## Platform
 The application is developed and tested on Linux.
 
-The PyInstaller configuration currently targets a standalone Linux executable. Cross-platform packaging has not yet been configured.
+The PyInstaller configuration currently targets a standalone Linux x86-64 executable. Cross-platform packaging has not yet been configured.
 
 ## Status
-Version `0.1.0rc1` is a Linux release candidate. See [RELEASE.md](RELEASE.md)
-for validation and known platform limits. No public release is implied by
-this version number; the packaged executable still needs a desktop check.
+Version `0.1.0` is the first public Linux release target. See [RELEASE.md](RELEASE.md)
+for included functionality, validation steps, and known platform limits.
