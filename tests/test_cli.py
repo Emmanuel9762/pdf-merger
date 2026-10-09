@@ -196,7 +196,7 @@ def test_main_handles_interrupted_input(monkeypatch, capsys, error_type):
     monkeypatch.setattr(cli, "parse_args", interrupt)
 
     assert cli.main() == 130
-    assert "Merge cancelled." in capsys.readouterr().out
+    assert "Operation cancelled." in capsys.readouterr().out
 
 
 @pytest.fixture
