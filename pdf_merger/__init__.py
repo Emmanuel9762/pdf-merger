@@ -8,6 +8,8 @@ from .merger import (
     merge_pdfs,
 )
 
+from .operations import OperationResult, OperationState
+
 from .output_path import resolve_output_path
 
 from .pdf_info import (
@@ -16,3 +18,5 @@ from .pdf_info import (
     get_total_pages,
     get_total_size,
 )
+
+from .splitter import split_pdf
