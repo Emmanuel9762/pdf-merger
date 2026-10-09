@@ -198,5 +198,7 @@ The application is developed and tested on Linux.
 The PyInstaller configuration currently targets a standalone Linux x86-64 executable. Cross-platform packaging has not yet been configured.
 
 ## Status
-Version `0.1.0` is the first public Linux release target. See [RELEASE.md](RELEASE.md)
-for included functionality, validation steps, and known platform limits.
+Version `0.2.0.dev0` is the active development line for the multifunctional PDF
+utility expansion. The stable 0.1.0 release remains documented in
+[RELEASE.md](RELEASE.md). The first v0.2 milestone adds a reusable operation
+result model and a safe PDF splitting service before GUI integration.

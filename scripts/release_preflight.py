@@ -58,13 +58,6 @@ def validate_release(project_root=PROJECT_ROOT, tag=None):
             f"README.md does not declare Version `{version}`."
         )
 
-    expected_heading = f"# PDF Merger {version}\n"
-
-    if not release_notes.startswith(expected_heading):
-        raise PreflightError(
-            f"RELEASE.md must start with {expected_heading.strip()!r}."
-        )
-
     if tag is not None:
         if not tag.startswith("v"):
             raise PreflightError("Release tag must start with 'v'.")
@@ -76,16 +69,23 @@ def validate_release(project_root=PROJECT_ROOT, tag=None):
                 f"Tag version {tag_version} does not match project version {version}."
             )
 
+        expected_heading = f"# PDF Merger {version}\n"
+
+        if not release_notes.startswith(expected_heading):
+            raise PreflightError(
+                f"RELEASE.md must start with {expected_heading.strip()!r}."
+            )
+
     return version
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Validate PDF Merger release metadata before packaging."
+        description="Validate PDF Merger development or release metadata."
     )
     parser.add_argument(
         "--tag",
-        help="Optional Git tag to validate, for example v0.1.0rc1.",
+        help="Optional Git tag to validate, for example v0.1.0.",
     )
     args = parser.parse_args(argv)
 
