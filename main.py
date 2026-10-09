@@ -8,37 +8,109 @@ from pdf_merger import (
     get_merge_order,
     merge_files,
     resolve_output_path,
+    split_pdf,
 )
 
 
-def parse_args():
+def parse_page_range(value):
+    parts = value.split("-")
+
+    try:
+        if len(parts) == 1:
+            start = end = int(parts[0])
+        elif len(parts) == 2:
+            start, end = (int(part) for part in parts)
+        else:
+            raise ValueError
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(
+            f"Invalid page range: {value!r}. Use PAGE or START-END."
+        ) from error
+
+    if start < 1 or end < start:
+        raise argparse.ArgumentTypeError(
+            f"Invalid page range: {value!r}. Pages must be positive and ordered."
+        )
+
+    return start, end
+
+
+def build_merge_parser():
     parser = argparse.ArgumentParser(description="Merge PDF files.")
 
     parser.add_argument(
         "files",
         nargs="*",
-        help="PDF files to merge."
+        help="PDF files to merge.",
     )
 
     parser.add_argument(
         "--input",
         default="input",
-        help="Folder containing PDF files."
+        help="Folder containing PDF files.",
     )
 
     parser.add_argument(
         "--output",
-        help="Output PDF file."
+        help="Output PDF file.",
     )
 
     parser.add_argument(
         "--order",
         nargs="+",
         type=int,
-        help="Order of input PDFs by number."
+        help="Order of input PDFs by number.",
     )
 
-    return parser.parse_args()
+    parser.set_defaults(operation="merge")
+    return parser
+
+
+def build_split_parser():
+    parser = argparse.ArgumentParser(
+        prog="pdf-merger-cli split",
+        description="Split a PDF into individual pages or page ranges.",
+    )
+
+    parser.add_argument(
+        "file",
+        help="PDF file to split.",
+    )
+    parser.add_argument(
+        "--range",
+        dest="ranges",
+        action="append",
+        type=parse_page_range,
+        help=(
+            "Page or inclusive page range to extract as one part. "
+            "Repeat for multiple parts, for example --range 1-3 --range 4-6. "
+            "If omitted, every page becomes its own PDF."
+        ),
+    )
+    parser.add_argument(
+        "--output",
+        help=(
+            "Directory for split PDFs. Defaults to "
+            "output/<source-name>-parts."
+        ),
+    )
+
+    parser.set_defaults(operation="split")
+    return parser
+
+
+def parse_args(argv=None):
+    arguments = list(argv) if argv is not None else None
+
+    if arguments is None:
+        import sys
+
+        arguments = sys.argv[1:]
+
+    if arguments and arguments[0] == "split":
+        return build_split_parser().parse_args(arguments[1:])
+
+    return build_merge_parser().parse_args(arguments)
 
 
 def get_output_file(output_path=None, input_func=input):
@@ -78,7 +150,7 @@ def get_output_file(output_path=None, input_func=input):
         return output_file
 
 
-def run(args, input_func=input):
+def run_merge(args, input_func=input):
     input_folder = Path(args.input)
 
     if args.files:
@@ -107,7 +179,7 @@ def run(args, input_func=input):
     elif getattr(args, "order", None):
         selected_files = apply_merge_order(
             pdf_files,
-            args.order
+            args.order,
         )
 
         if selected_files is None:
@@ -119,7 +191,7 @@ def run(args, input_func=input):
     else:
         selected_files = get_merge_order(
             pdf_files,
-            input_func=input_func
+            input_func=input_func,
         )
 
     print("\nMerge order:")
@@ -167,12 +239,54 @@ def run(args, input_func=input):
     return 0
 
 
+def run_split(args):
+    source = Path(args.file)
+    output_dir = (
+        Path(args.output)
+        if args.output
+        else Path("output") / f"{source.stem}-parts"
+    )
+
+    def report_progress(current, total, output_file):
+        print(f"Created part {current}/{total}: {output_file.name}")
+
+    result = split_pdf(
+        source,
+        output_dir,
+        ranges=args.ranges,
+        progress_callback=report_progress,
+    )
+
+    if result.failed:
+        print("Split failed.")
+        print(f"Reason: {result.error}")
+        return 1
+
+    if result.cancelled:
+        print("Split cancelled.")
+        return 130
+
+    print("\nPDF split successfully!")
+    print(f"Parts created: {len(result.outputs)}")
+    print(f"Pages processed: {result.pages_processed}")
+    print(f"Output directory: {output_dir}")
+
+    return 0
+
+
+def run(args, input_func=input):
+    if getattr(args, "operation", "merge") == "split":
+        return run_split(args)
+
+    return run_merge(args, input_func=input_func)
+
+
 def main():
     try:
         args = parse_args()
         return run(args)
     except (EOFError, KeyboardInterrupt):
-        print("\nMerge cancelled.")
+        print("\nOperation cancelled.")
         return 130
 
 
