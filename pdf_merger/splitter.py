@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -37,6 +38,12 @@ def _output_name(source: Path, index: int, page_range: PageRange) -> str:
     start, end = page_range
     pages = f"page-{start}" if start == end else f"pages-{start}-{end}"
     return f"{source.stem}_part-{index:03d}_{pages}.pdf"
+
+
+def _publish_without_overwrite(temporary_path: Path, output: Path) -> None:
+    """Publish a staged file atomically without replacing an existing target."""
+    os.link(temporary_path, output)
+    temporary_path.unlink()
 
 
 def split_pdf(
@@ -119,7 +126,7 @@ def split_pdf(
             )
 
         for temporary_path, output in zip(temporary_files, outputs):
-            temporary_path.replace(output)
+            _publish_without_overwrite(temporary_path, output)
             published_files.append(output)
 
         return OperationResult(

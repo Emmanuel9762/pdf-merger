@@ -117,3 +117,47 @@ def test_split_pdf_preserves_existing_conflicting_output(tmp_path):
     assert "Output already exists" in result.error
     assert existing.read_bytes() == b"keep me"
     assert list(output_dir.iterdir()) == [existing]
+
+
+def test_split_pdf_does_not_overwrite_output_created_during_staging(tmp_path):
+    source = tmp_path / "source.pdf"
+    output_dir = tmp_path / "parts"
+    create_pdf(source, [100])
+    late_output = output_dir / "source_part-001_page-1.pdf"
+
+    def create_conflict(current, total, output):
+        assert output == late_output
+        late_output.write_bytes(b"created by another process")
+
+    result = split_pdf(
+        source,
+        output_dir,
+        progress_callback=create_conflict,
+    )
+
+    assert result.failed is True
+    assert result.outputs == ()
+    assert late_output.read_bytes() == b"created by another process"
+    assert list(output_dir.iterdir()) == [late_output]
+
+
+def test_split_pdf_rolls_back_parts_if_late_conflict_occurs(tmp_path):
+    source = tmp_path / "source.pdf"
+    output_dir = tmp_path / "parts"
+    create_pdf(source, [100, 200])
+    second_output = output_dir / "source_part-002_page-2.pdf"
+
+    def create_second_part_conflict(current, total, output):
+        if current == total:
+            second_output.write_bytes(b"external")
+
+    result = split_pdf(
+        source,
+        output_dir,
+        progress_callback=create_second_part_conflict,
+    )
+
+    assert result.failed is True
+    assert not (output_dir / "source_part-001_page-1.pdf").exists()
+    assert second_output.read_bytes() == b"external"
+    assert list(output_dir.iterdir()) == [second_output]
