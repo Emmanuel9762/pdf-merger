@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from pdf_merger import get_pdf_info, resolve_output_path
-from gui.worker import MergeWorker
+from gui.worker import MergeWorker, SplitWorker
 
 
 class PDFListWidget(QListWidget):
@@ -639,6 +639,96 @@ class MainWindow(QMainWindow):
 
         self.merge_thread.start()
 
+    def start_split(self):
+        item = self.file_list.currentItem()
+
+        if item is None:
+            QMessageBox.warning(
+                self,
+                "No PDF Selected",
+                "Select one PDF to split."
+            )
+            return
+
+        pdf_file = Path(item.data(Qt.UserRole))
+
+        output_dir = QFileDialog.getExistingDirectory(
+            self,
+            "Choose split output directory",
+            str(Path("output") / f"{pdf_file.stem}-parts"),
+        )
+
+        if not output_dir:
+            return
+
+        self.set_merge_state(True)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setValue(0)
+        self.status_label.setText(f"Preparing to split {pdf_file.name}...")
+
+        self.merge_thread = QThread()
+        self.merge_worker = SplitWorker(
+            pdf_file,
+            Path(output_dir),
+        )
+
+        self.merge_worker.moveToThread(self.merge_thread)
+        self.merge_thread.started.connect(self.merge_worker.run)
+        self.merge_worker.progress.connect(self.split_progress)
+        self.merge_worker.finished.connect(self.split_succeeded)
+        self.merge_worker.failed.connect(self.split_failed)
+        self.merge_worker.cancelled.connect(self.split_cancelled)
+
+        self.merge_worker.finished.connect(self.merge_thread.quit)
+        self.merge_worker.failed.connect(self.merge_thread.quit)
+        self.merge_worker.cancelled.connect(self.merge_thread.quit)
+
+        self.merge_worker.finished.connect(self.merge_worker.deleteLater)
+        self.merge_worker.failed.connect(self.merge_worker.deleteLater)
+        self.merge_worker.cancelled.connect(self.merge_worker.deleteLater)
+
+        self.merge_thread.finished.connect(self.merge_thread.deleteLater)
+        self.merge_thread.finished.connect(self.merge_finished)
+
+        self.merge_thread.start()
+
+    def split_progress(self, current, total, output_file):
+        self.progress_bar.setMaximum(total)
+        self.progress_bar.setValue(current)
+        self.status_label.setText(
+            f"Creating: {Path(output_file).name} ({current} of {total})"
+        )
+
+    def split_succeeded(self, result):
+        self.progress_bar.setValue(self.progress_bar.maximum())
+        self.status_label.setText("Split completed successfully.")
+
+        QMessageBox.information(
+            self,
+            "Split Complete",
+            f"PDF split successfully.\n\n"
+            f"Parts: {len(result.outputs)}\n"
+            f"Pages: {result.pages_processed}\n"
+            f"Output: {result.outputs[0].parent if result.outputs else ''}"
+        )
+
+    def split_failed(self, error_message, current_file):
+        self.status_label.setText("Split failed.")
+        self.progress_bar.setValue(0)
+
+        file_name = Path(current_file).name if current_file else "PDF"
+
+        QMessageBox.critical(
+            self,
+            "Split Failed",
+            f"Could not split:\n{file_name}\n\n"
+            f"Reason:\n{error_message}"
+        )
+
+    def split_cancelled(self):
+        self.status_label.setText("Split cancelled.")
+        self.progress_bar.setValue(0)
+
     def merge_progress(self, current, total, pdf_file):
         self.progress_bar.setMaximum(total)
         self.progress_bar.setValue(current)
@@ -700,7 +790,7 @@ class MainWindow(QMainWindow):
             return
 
         self.cancel_button.setEnabled(False)
-        self.status_label.setText("Cancelling merge...")
+        self.status_label.setText("Cancelling operation...")
         self.merge_worker.cancel()
 
     def merge_cancelled(self):
