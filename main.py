@@ -13,26 +13,12 @@ from pdf_merger import (
 
 
 def parse_page_range(value):
-    parts = value.split("-")
+    from pdf_merger import parse_page_range as parse_core_page_range
 
     try:
-        if len(parts) == 1:
-            start = end = int(parts[0])
-        elif len(parts) == 2:
-            start, end = (int(part) for part in parts)
-        else:
-            raise ValueError
+        return parse_core_page_range(value)
     except ValueError as error:
-        raise argparse.ArgumentTypeError(
-            f"Invalid page range: {value!r}. Use PAGE or START-END."
-        ) from error
-
-    if start < 1 or end < start:
-        raise argparse.ArgumentTypeError(
-            f"Invalid page range: {value!r}. Pages must be positive and ordered."
-        )
-
-    return start, end
+        raise argparse.ArgumentTypeError(str(error)) from error
 
 
 def build_merge_parser():

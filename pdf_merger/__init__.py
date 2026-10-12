@@ -20,3 +20,6 @@ from .pdf_info import (
 )
 
 from .splitter import split_pdf
+
+
+from .page_ranges import parse_page_range, parse_page_ranges

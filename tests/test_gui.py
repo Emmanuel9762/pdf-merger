@@ -73,6 +73,8 @@ def test_initial_gui_state(window):
     assert window.clear_button.isEnabled()
     assert window.choose_output_button.isEnabled()
     assert window.merge_button.isEnabled()
+    assert window.split_button.isEnabled()
+    assert window.split_ranges_input.isEnabled()
     assert window.cancel_button.isEnabled() is False
     assert window.file_list.isEnabled()
 
@@ -85,6 +87,8 @@ def test_merge_state_disables_controls(window):
     assert not window.clear_button.isEnabled()
     assert not window.choose_output_button.isEnabled()
     assert not window.merge_button.isEnabled()
+    assert not window.split_button.isEnabled()
+    assert not window.split_ranges_input.isEnabled()
     assert window.cancel_button.isEnabled()
     assert not window.file_list.isEnabled()
 

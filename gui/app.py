@@ -13,11 +13,12 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QLineEdit,
     QVBoxLayout,
     QWidget,
 )
 
-from pdf_merger import get_pdf_info, resolve_output_path
+from pdf_merger import get_pdf_info, parse_page_ranges, resolve_output_path
 from gui.worker import MergeWorker, SplitWorker
 
 
@@ -357,6 +358,24 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(self.merge_button)
 
+        split_layout = QHBoxLayout()
+        self.split_ranges_input = QLineEdit()
+        self.split_ranges_input.setPlaceholderText(
+            "Split ranges, e.g. 1-3, 5, 7-9 (blank = every page)"
+        )
+        self.split_ranges_input.setToolTip(
+            "Comma-separated pages or inclusive ranges. "
+            "Leave blank to create one PDF per page."
+        )
+
+        self.split_button = QPushButton("Split Selected PDF")
+        self.split_button.setMinimumHeight(40)
+        self.split_button.clicked.connect(self.start_split)
+
+        split_layout.addWidget(self.split_ranges_input)
+        split_layout.addWidget(self.split_button)
+        main_layout.addLayout(split_layout)
+
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.setMinimumHeight(40)
         self.cancel_button.setEnabled(False)
@@ -652,6 +671,16 @@ class MainWindow(QMainWindow):
 
         pdf_file = Path(item.data(Qt.UserRole))
 
+        try:
+            ranges = parse_page_ranges(self.split_ranges_input.text())
+        except ValueError as error:
+            QMessageBox.warning(
+                self,
+                "Invalid Page Ranges",
+                str(error),
+            )
+            return
+
         output_dir = QFileDialog.getExistingDirectory(
             self,
             "Choose split output directory",
@@ -670,6 +699,7 @@ class MainWindow(QMainWindow):
         self.merge_worker = SplitWorker(
             pdf_file,
             Path(output_dir),
+            ranges=ranges,
         )
 
         self.merge_worker.moveToThread(self.merge_thread)
@@ -811,6 +841,8 @@ class MainWindow(QMainWindow):
         self.clear_button.setEnabled(enabled)
         self.choose_output_button.setEnabled(enabled)
         self.merge_button.setEnabled(enabled)
+        self.split_button.setEnabled(enabled)
+        self.split_ranges_input.setEnabled(enabled)
         self.file_list.setEnabled(enabled)
         self.cancel_button.setEnabled(merging)
 
