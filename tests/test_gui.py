@@ -591,7 +591,7 @@ def test_cancel_merge_requests_worker_cancellation(window):
     window.cancel_merge()
 
     assert not window.cancel_button.isEnabled()
-    assert window.status_label.text() == "Cancelling merge..."
+    assert window.status_label.text() == "Cancelling operation..."
     assert worker.is_cancelled()
 
 

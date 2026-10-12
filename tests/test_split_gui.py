@@ -1,6 +1,30 @@
-from pathlib import Path
+import os
 
+import pytest
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6.QtWidgets import QApplication
+
+from gui.app import MainWindow
 from pdf_merger import parse_page_ranges
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    app = QApplication.instance()
+
+    if app is None:
+        app = QApplication([])
+
+    return app
+
+
+@pytest.fixture
+def window(qapp):
+    window = MainWindow()
+    yield window
+    window.close()
 
 
 def test_split_range_input_defaults_to_every_page(window):
