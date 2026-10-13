@@ -3,6 +3,7 @@ from pathlib import Path
 
 from pdf_merger import (
     apply_merge_order,
+    extract_pages,
     find_pdfs,
     get_cli_files,
     get_merge_order,
@@ -85,6 +86,38 @@ def build_split_parser():
     return parser
 
 
+
+def build_extract_parser():
+    parser = argparse.ArgumentParser(
+        prog="pdf-merger-cli extract",
+        description="Extract selected pages into one PDF.",
+    )
+    parser.add_argument(
+        "file",
+        help="PDF file to extract pages from.",
+    )
+    parser.add_argument(
+        "--range",
+        dest="ranges",
+        action="append",
+        type=parse_page_range,
+        required=True,
+        help=(
+            "Page or inclusive page range to include in the output. "
+            "Repeat to preserve custom ordering, for example "
+            "--range 4-5 --range 2."
+        ),
+    )
+    parser.add_argument(
+        "--output",
+        help=(
+            "Output PDF. Defaults to "
+            "output/<source-name>-extracted.pdf."
+        ),
+    )
+    parser.set_defaults(operation="extract")
+    return parser
+
 def parse_args(argv=None):
     arguments = list(argv) if argv is not None else None
 
@@ -95,6 +128,9 @@ def parse_args(argv=None):
 
     if arguments and arguments[0] == "split":
         return build_split_parser().parse_args(arguments[1:])
+
+    if arguments and arguments[0] == "extract":
+        return build_extract_parser().parse_args(arguments[1:])
 
     return build_merge_parser().parse_args(arguments)
 
@@ -260,9 +296,49 @@ def run_split(args):
     return 0
 
 
+
+def run_extract(args):
+    source = Path(args.file)
+    output_file = (
+        Path(args.output)
+        if args.output
+        else Path("output") / f"{source.stem}-extracted.pdf"
+    )
+
+    def report_progress(current, total, current_file):
+        print(f"Extracting page {current}/{total} from {current_file.name}")
+
+    result = extract_pages(
+        source,
+        output_file,
+        ranges=args.ranges,
+        progress_callback=report_progress,
+    )
+
+    if result.failed:
+        print("Extract failed.")
+        print(f"Reason: {result.error}")
+        return 1
+
+    if result.cancelled:
+        print("Extract cancelled.")
+        return 130
+
+    print("\nPages extracted successfully!")
+    print(f"Pages processed: {result.pages_processed}")
+    print(f"Output: {output_file}")
+
+    return 0
+
+
 def run(args, input_func=input):
-    if getattr(args, "operation", "merge") == "split":
+    operation = getattr(args, "operation", "merge")
+
+    if operation == "split":
         return run_split(args)
+
+    if operation == "extract":
+        return run_extract(args)
 
     return run_merge(args, input_func=input_func)
 
