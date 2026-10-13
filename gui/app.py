@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from pdf_merger import get_pdf_info, parse_page_ranges, resolve_output_path
-from gui.worker import MergeWorker, SplitWorker
+from gui.worker import ExtractWorker, MergeWorker, SplitWorker
 
 
 class PDFListWidget(QListWidget):
@@ -376,6 +376,24 @@ class MainWindow(QMainWindow):
         split_layout.addWidget(self.split_button)
         main_layout.addLayout(split_layout)
 
+        extract_layout = QHBoxLayout()
+        self.extract_ranges_input = QLineEdit()
+        self.extract_ranges_input.setPlaceholderText(
+            "Extract ranges, e.g. 1-3, 5, 7-9"
+        )
+        self.extract_ranges_input.setToolTip(
+            "Comma-separated pages or inclusive ranges. "
+            "At least one range is required."
+        )
+
+        self.extract_button = QPushButton("Extract Selected Pages")
+        self.extract_button.setMinimumHeight(40)
+        self.extract_button.clicked.connect(self.start_extract)
+
+        extract_layout.addWidget(self.extract_ranges_input)
+        extract_layout.addWidget(self.extract_button)
+        main_layout.addLayout(extract_layout)
+
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.setMinimumHeight(40)
         self.cancel_button.setEnabled(False)
@@ -722,6 +740,126 @@ class MainWindow(QMainWindow):
 
         self.merge_thread.start()
 
+    def start_extract(self):
+        item = self.file_list.currentItem()
+
+        if item is None:
+            QMessageBox.warning(
+                self,
+                "No PDF Selected",
+                "Select one PDF to extract pages from."
+            )
+            return
+
+        pdf_file = Path(item.data(Qt.UserRole))
+
+        try:
+            ranges = parse_page_ranges(self.extract_ranges_input.text())
+        except ValueError as error:
+            QMessageBox.warning(
+                self,
+                "Invalid Page Ranges",
+                str(error),
+            )
+            return
+
+        if not ranges:
+            QMessageBox.warning(
+                self,
+                "Page Ranges Required",
+                "Enter at least one page or page range to extract."
+            )
+            return
+
+        default_output = Path("output") / f"{pdf_file.stem}-extracted.pdf"
+        output_file, _ = QFileDialog.getSaveFileName(
+            self,
+            "Choose extracted PDF output",
+            str(default_output),
+            "PDF Files (*.pdf)",
+        )
+
+        if not output_file:
+            return
+
+        output_path = Path(output_file)
+
+        if output_path.suffix.lower() != ".pdf":
+            output_path = output_path.with_suffix(".pdf")
+
+        self.set_merge_state(True)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setValue(0)
+        self.status_label.setText(
+            f"Preparing to extract pages from {pdf_file.name}..."
+        )
+
+        self.merge_thread = QThread()
+        self.merge_worker = ExtractWorker(
+            pdf_file,
+            output_path,
+            ranges=ranges,
+        )
+
+        self.merge_worker.moveToThread(self.merge_thread)
+        self.merge_thread.started.connect(self.merge_worker.run)
+        self.merge_worker.progress.connect(self.extract_progress)
+        self.merge_worker.finished.connect(self.extract_succeeded)
+        self.merge_worker.failed.connect(self.extract_failed)
+        self.merge_worker.cancelled.connect(self.extract_cancelled)
+
+        self.merge_worker.finished.connect(self.merge_thread.quit)
+        self.merge_worker.failed.connect(self.merge_thread.quit)
+        self.merge_worker.cancelled.connect(self.merge_thread.quit)
+
+        self.merge_worker.finished.connect(self.merge_worker.deleteLater)
+        self.merge_worker.failed.connect(self.merge_worker.deleteLater)
+        self.merge_worker.cancelled.connect(self.merge_worker.deleteLater)
+
+        self.merge_thread.finished.connect(self.merge_thread.deleteLater)
+        self.merge_thread.finished.connect(self.merge_finished)
+
+        self.merge_thread.start()
+
+    def extract_progress(self, current, total, pdf_file):
+        self.progress_bar.setMaximum(total)
+        self.progress_bar.setValue(current)
+        self.status_label.setText(
+            f"Extracting pages from {Path(pdf_file).name} "
+            f"({current} of {total})"
+        )
+
+    def extract_succeeded(self, result):
+        self.progress_bar.setValue(self.progress_bar.maximum())
+        self.status_label.setText("Extraction completed successfully.")
+
+        output = result.outputs[0] if result.outputs else ""
+
+        QMessageBox.information(
+            self,
+            "Extraction Complete",
+            f"Pages extracted successfully.\n\n"
+            f"Pages: {result.pages_processed}\n"
+            f"Output: {output}"
+        )
+
+    def extract_failed(self, error_message, current_file):
+        self.status_label.setText("Extraction failed.")
+        self.progress_bar.setValue(0)
+
+        file_name = Path(current_file).name if current_file else "PDF"
+
+        QMessageBox.critical(
+            self,
+            "Extraction Failed",
+            f"Could not extract pages from:\n{file_name}\n\n"
+            f"Reason:\n{error_message}"
+        )
+
+    def extract_cancelled(self):
+        self.status_label.setText("Extraction cancelled.")
+        self.progress_bar.setValue(0)
+
     def split_progress(self, current, total, output_file):
         self.progress_bar.setMaximum(total)
         self.progress_bar.setValue(current)
@@ -843,6 +981,8 @@ class MainWindow(QMainWindow):
         self.merge_button.setEnabled(enabled)
         self.split_button.setEnabled(enabled)
         self.split_ranges_input.setEnabled(enabled)
+        self.extract_button.setEnabled(enabled)
+        self.extract_ranges_input.setEnabled(enabled)
         self.file_list.setEnabled(enabled)
         self.cancel_button.setEnabled(merging)
 

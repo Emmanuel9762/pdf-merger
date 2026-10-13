@@ -3,7 +3,7 @@ from threading import Event
 
 from PySide6.QtCore import QObject, Signal, Slot
 
-from pdf_merger import merge_files, split_pdf
+from pdf_merger import extract_pages, merge_files, split_pdf
 
 
 class MergeWorker(QObject):
@@ -119,5 +119,58 @@ class SplitWorker(QObject):
 
         self.failed.emit(
             result.error or "Split failed without an error detail.",
+            result.current_file,
+        )
+
+
+
+class ExtractWorker(QObject):
+    progress = Signal(int, int, object)
+    finished = Signal(object)
+    failed = Signal(str, object)
+    cancelled = Signal()
+
+    def __init__(self, pdf_file, output_file, ranges):
+        super().__init__()
+
+        self.pdf_file = Path(pdf_file)
+        self.output_file = Path(output_file)
+        self.ranges = ranges
+        self._cancel_event = Event()
+
+    def cancel(self):
+        self._cancel_event.set()
+
+    def is_cancelled(self):
+        return self._cancel_event.is_set()
+
+    @Slot()
+    def run(self):
+        try:
+            result = extract_pages(
+                self.pdf_file,
+                self.output_file,
+                ranges=self.ranges,
+                progress_callback=lambda current, total, path: self.progress.emit(
+                    current,
+                    total,
+                    path,
+                ),
+                cancel_callback=self.is_cancelled,
+            )
+        except Exception as error:
+            self.failed.emit(str(error), self.pdf_file)
+            return
+
+        if result.succeeded:
+            self.finished.emit(result)
+            return
+
+        if result.cancelled:
+            self.cancelled.emit()
+            return
+
+        self.failed.emit(
+            result.error or "Extract failed without an error detail.",
             result.current_file,
         )
