@@ -9,6 +9,7 @@ from pdf_merger import (
     get_merge_order,
     merge_files,
     resolve_output_path,
+    rotate_pages,
     split_pdf,
 )
 
@@ -118,6 +119,43 @@ def build_extract_parser():
     parser.set_defaults(operation="extract")
     return parser
 
+
+def build_rotate_parser():
+    parser = argparse.ArgumentParser(
+        prog="pdf-merger-cli rotate",
+        description="Rotate selected PDF pages.",
+    )
+    parser.add_argument(
+        "file",
+        help="PDF file to rotate.",
+    )
+    parser.add_argument(
+        "--degrees",
+        type=int,
+        choices=(90, 180, 270),
+        required=True,
+        help="Clockwise rotation in degrees.",
+    )
+    parser.add_argument(
+        "--range",
+        dest="ranges",
+        action="append",
+        type=parse_page_range,
+        help=(
+            "Page or inclusive page range to rotate. Repeat for multiple "
+            "ranges. If omitted, every page is rotated."
+        ),
+    )
+    parser.add_argument(
+        "--output",
+        help=(
+            "Output PDF. Defaults to "
+            "output/<source-name>-rotated.pdf."
+        ),
+    )
+    parser.set_defaults(operation="rotate")
+    return parser
+
 def parse_args(argv=None):
     arguments = list(argv) if argv is not None else None
 
@@ -131,6 +169,9 @@ def parse_args(argv=None):
 
     if arguments and arguments[0] == "extract":
         return build_extract_parser().parse_args(arguments[1:])
+
+    if arguments and arguments[0] == "rotate":
+        return build_rotate_parser().parse_args(arguments[1:])
 
     return build_merge_parser().parse_args(arguments)
 
@@ -331,6 +372,42 @@ def run_extract(args):
     return 0
 
 
+
+def run_rotate(args):
+    source = Path(args.file)
+    output_file = (
+        Path(args.output)
+        if args.output
+        else Path("output") / f"{source.stem}-rotated.pdf"
+    )
+
+    def report_progress(current, total, current_file):
+        print(f"Rotating page {current}/{total} in {current_file.name}")
+
+    result = rotate_pages(
+        source,
+        output_file,
+        degrees=args.degrees,
+        ranges=args.ranges,
+        progress_callback=report_progress,
+    )
+
+    if result.failed:
+        print("Rotate failed.")
+        print(f"Reason: {result.error}")
+        return 1
+
+    if result.cancelled:
+        print("Rotate cancelled.")
+        return 130
+
+    print("\nPages rotated successfully!")
+    print(f"Pages processed: {result.pages_processed}")
+    print(f"Output: {output_file}")
+
+    return 0
+
+
 def run(args, input_func=input):
     operation = getattr(args, "operation", "merge")
 
@@ -339,6 +416,9 @@ def run(args, input_func=input):
 
     if operation == "extract":
         return run_extract(args)
+
+    if operation == "rotate":
+        return run_rotate(args)
 
     return run_merge(args, input_func=input_func)
 
