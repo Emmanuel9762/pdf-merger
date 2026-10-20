@@ -4,6 +4,7 @@ from PySide6.QtCore import QMimeData, QThread, Qt
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -19,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from pdf_merger import get_pdf_info, parse_page_ranges, resolve_output_path
-from gui.worker import ExtractWorker, MergeWorker, SplitWorker
+from gui.worker import ExtractWorker, MergeWorker, RotateWorker, SplitWorker
 
 
 class PDFListWidget(QListWidget):
@@ -393,6 +394,30 @@ class MainWindow(QMainWindow):
         extract_layout.addWidget(self.extract_ranges_input)
         extract_layout.addWidget(self.extract_button)
         main_layout.addLayout(extract_layout)
+
+        rotate_layout = QHBoxLayout()
+
+        self.rotate_ranges_input = QLineEdit()
+        self.rotate_ranges_input.setPlaceholderText(
+            "Rotate ranges, e.g. 1-3, 5 (blank = every page)"
+        )
+        self.rotate_ranges_input.setToolTip(
+            "Comma-separated pages or inclusive ranges. "
+            "Leave blank to rotate every page."
+        )
+
+        self.rotate_degrees = QComboBox()
+        self.rotate_degrees.addItems(["90°", "180°", "270°"])
+        self.rotate_degrees.setCurrentIndex(0)
+
+        self.rotate_button = QPushButton("Rotate Selected Pages")
+        self.rotate_button.setMinimumHeight(40)
+        self.rotate_button.clicked.connect(self.start_rotate)
+
+        rotate_layout.addWidget(self.rotate_ranges_input)
+        rotate_layout.addWidget(self.rotate_degrees)
+        rotate_layout.addWidget(self.rotate_button)
+        main_layout.addLayout(rotate_layout)
 
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.setMinimumHeight(40)
@@ -860,6 +885,121 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Extraction cancelled.")
         self.progress_bar.setValue(0)
 
+    def start_rotate(self):
+        item = self.file_list.currentItem()
+
+        if item is None:
+            QMessageBox.warning(
+                self,
+                "No PDF Selected",
+                "Select one PDF to rotate."
+            )
+            return
+
+        pdf_file = Path(item.data(Qt.UserRole))
+
+        try:
+            ranges = parse_page_ranges(self.rotate_ranges_input.text())
+        except ValueError as error:
+            QMessageBox.warning(
+                self,
+                "Invalid Page Ranges",
+                str(error),
+            )
+            return
+
+        degrees = int(self.rotate_degrees.currentText().rstrip("°"))
+
+        default_output = Path("output") / f"{pdf_file.stem}-rotated.pdf"
+        output_file, _ = QFileDialog.getSaveFileName(
+            self,
+            "Choose rotated PDF output",
+            str(default_output),
+            "PDF Files (*.pdf)",
+        )
+
+        if not output_file:
+            return
+
+        output_path = Path(output_file)
+
+        if output_path.suffix.lower() != ".pdf":
+            output_path = output_path.with_suffix(".pdf")
+
+        self.set_merge_state(True)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setValue(0)
+        self.status_label.setText(
+            f"Preparing to rotate {pdf_file.name}..."
+        )
+
+        self.merge_thread = QThread()
+        self.merge_worker = RotateWorker(
+            pdf_file,
+            output_path,
+            degrees=degrees,
+            ranges=ranges,
+        )
+
+        self.merge_worker.moveToThread(self.merge_thread)
+        self.merge_thread.started.connect(self.merge_worker.run)
+        self.merge_worker.progress.connect(self.rotate_progress)
+        self.merge_worker.finished.connect(self.rotate_succeeded)
+        self.merge_worker.failed.connect(self.rotate_failed)
+        self.merge_worker.cancelled.connect(self.rotate_cancelled)
+
+        self.merge_worker.finished.connect(self.merge_thread.quit)
+        self.merge_worker.failed.connect(self.merge_thread.quit)
+        self.merge_worker.cancelled.connect(self.merge_thread.quit)
+
+        self.merge_worker.finished.connect(self.merge_worker.deleteLater)
+        self.merge_worker.failed.connect(self.merge_worker.deleteLater)
+        self.merge_worker.cancelled.connect(self.merge_worker.deleteLater)
+
+        self.merge_thread.finished.connect(self.merge_thread.deleteLater)
+        self.merge_thread.finished.connect(self.merge_finished)
+
+        self.merge_thread.start()
+
+    def rotate_progress(self, current, total, pdf_file):
+        self.progress_bar.setMaximum(total)
+        self.progress_bar.setValue(current)
+        self.status_label.setText(
+            f"Rotating pages in {Path(pdf_file).name} "
+            f"({current} of {total})"
+        )
+
+    def rotate_succeeded(self, result):
+        self.progress_bar.setValue(self.progress_bar.maximum())
+        self.status_label.setText("Rotation completed successfully.")
+
+        output = result.outputs[0] if result.outputs else ""
+
+        QMessageBox.information(
+            self,
+            "Rotation Complete",
+            f"Pages rotated successfully.\n\n"
+            f"Pages processed: {result.pages_processed}\n"
+            f"Output: {output}"
+        )
+
+    def rotate_failed(self, error_message, current_file):
+        self.status_label.setText("Rotation failed.")
+        self.progress_bar.setValue(0)
+
+        file_name = Path(current_file).name if current_file else "PDF"
+
+        QMessageBox.critical(
+            self,
+            "Rotation Failed",
+            f"Could not rotate:\n{file_name}\n\n"
+            f"Reason:\n{error_message}"
+        )
+
+    def rotate_cancelled(self):
+        self.status_label.setText("Rotation cancelled.")
+        self.progress_bar.setValue(0)
+
     def split_progress(self, current, total, output_file):
         self.progress_bar.setMaximum(total)
         self.progress_bar.setValue(current)
@@ -983,6 +1123,9 @@ class MainWindow(QMainWindow):
         self.split_ranges_input.setEnabled(enabled)
         self.extract_button.setEnabled(enabled)
         self.extract_ranges_input.setEnabled(enabled)
+        self.rotate_button.setEnabled(enabled)
+        self.rotate_ranges_input.setEnabled(enabled)
+        self.rotate_degrees.setEnabled(enabled)
         self.file_list.setEnabled(enabled)
         self.cancel_button.setEnabled(merging)
 
