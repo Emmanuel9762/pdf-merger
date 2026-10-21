@@ -3,6 +3,7 @@ from pathlib import Path
 
 from pdf_merger import (
     apply_merge_order,
+    delete_pages,
     extract_pages,
     find_pdfs,
     get_cli_files,
@@ -156,6 +157,37 @@ def build_rotate_parser():
     parser.set_defaults(operation="rotate")
     return parser
 
+
+def build_delete_parser():
+    parser = argparse.ArgumentParser(
+        prog="pdf-merger-cli delete",
+        description="Delete selected pages from a PDF.",
+    )
+    parser.add_argument(
+        "file",
+        help="PDF file to remove pages from.",
+    )
+    parser.add_argument(
+        "--range",
+        dest="ranges",
+        action="append",
+        type=parse_page_range,
+        required=True,
+        help=(
+            "Page or inclusive page range to delete. Repeat for multiple "
+            "ranges, for example --range 2-3 --range 5."
+        ),
+    )
+    parser.add_argument(
+        "--output",
+        help=(
+            "Output PDF. Defaults to "
+            "output/<source-name>-trimmed.pdf."
+        ),
+    )
+    parser.set_defaults(operation="delete")
+    return parser
+
 def parse_args(argv=None):
     arguments = list(argv) if argv is not None else None
 
@@ -172,6 +204,9 @@ def parse_args(argv=None):
 
     if arguments and arguments[0] == "rotate":
         return build_rotate_parser().parse_args(arguments[1:])
+
+    if arguments and arguments[0] == "delete":
+        return build_delete_parser().parse_args(arguments[1:])
 
     return build_merge_parser().parse_args(arguments)
 
@@ -408,6 +443,41 @@ def run_rotate(args):
     return 0
 
 
+
+def run_delete(args):
+    source = Path(args.file)
+    output_file = (
+        Path(args.output)
+        if args.output
+        else Path("output") / f"{source.stem}-trimmed.pdf"
+    )
+
+    def report_progress(current, total, current_file):
+        print(f"Processing page {current}/{total} in {current_file.name}")
+
+    result = delete_pages(
+        source,
+        output_file,
+        ranges=args.ranges,
+        progress_callback=report_progress,
+    )
+
+    if result.failed:
+        print("Delete failed.")
+        print(f"Reason: {result.error}")
+        return 1
+
+    if result.cancelled:
+        print("Delete cancelled.")
+        return 130
+
+    print("\nPages deleted successfully!")
+    print(f"Pages processed: {result.pages_processed}")
+    print(f"Output: {output_file}")
+
+    return 0
+
+
 def run(args, input_func=input):
     operation = getattr(args, "operation", "merge")
 
@@ -419,6 +489,9 @@ def run(args, input_func=input):
 
     if operation == "rotate":
         return run_rotate(args)
+
+    if operation == "delete":
+        return run_delete(args)
 
     return run_merge(args, input_func=input_func)
 
