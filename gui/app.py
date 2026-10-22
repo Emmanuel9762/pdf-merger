@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from pdf_merger import get_pdf_info, parse_page_ranges, resolve_output_path
-from gui.worker import ExtractWorker, MergeWorker, RotateWorker, SplitWorker
+from gui.worker import DeleteWorker, ExtractWorker, MergeWorker, RotateWorker, SplitWorker
 
 
 class PDFListWidget(QListWidget):
@@ -418,6 +418,25 @@ class MainWindow(QMainWindow):
         rotate_layout.addWidget(self.rotate_degrees)
         rotate_layout.addWidget(self.rotate_button)
         main_layout.addLayout(rotate_layout)
+
+        delete_layout = QHBoxLayout()
+
+        self.delete_ranges_input = QLineEdit()
+        self.delete_ranges_input.setPlaceholderText(
+            "Delete ranges, e.g. 2-3, 5"
+        )
+        self.delete_ranges_input.setToolTip(
+            "Comma-separated pages or inclusive ranges. "
+            "At least one range is required."
+        )
+
+        self.delete_button = QPushButton("Delete Selected Pages")
+        self.delete_button.setMinimumHeight(40)
+        self.delete_button.clicked.connect(self.start_delete)
+
+        delete_layout.addWidget(self.delete_ranges_input)
+        delete_layout.addWidget(self.delete_button)
+        main_layout.addLayout(delete_layout)
 
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.setMinimumHeight(40)
@@ -1000,6 +1019,126 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Rotation cancelled.")
         self.progress_bar.setValue(0)
 
+    def start_delete(self):
+        item = self.file_list.currentItem()
+
+        if item is None:
+            QMessageBox.warning(
+                self,
+                "No PDF Selected",
+                "Select one PDF to delete pages from."
+            )
+            return
+
+        pdf_file = Path(item.data(Qt.UserRole))
+
+        try:
+            ranges = parse_page_ranges(self.delete_ranges_input.text())
+        except ValueError as error:
+            QMessageBox.warning(
+                self,
+                "Invalid Page Ranges",
+                str(error),
+            )
+            return
+
+        if not ranges:
+            QMessageBox.warning(
+                self,
+                "Page Ranges Required",
+                "Enter at least one page or page range to delete."
+            )
+            return
+
+        default_output = Path("output") / f"{pdf_file.stem}-trimmed.pdf"
+        output_file, _ = QFileDialog.getSaveFileName(
+            self,
+            "Choose trimmed PDF output",
+            str(default_output),
+            "PDF Files (*.pdf)",
+        )
+
+        if not output_file:
+            return
+
+        output_path = Path(output_file)
+
+        if output_path.suffix.lower() != ".pdf":
+            output_path = output_path.with_suffix(".pdf")
+
+        self.set_merge_state(True)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setValue(0)
+        self.status_label.setText(
+            f"Preparing to delete pages from {pdf_file.name}..."
+        )
+
+        self.merge_thread = QThread()
+        self.merge_worker = DeleteWorker(
+            pdf_file,
+            output_path,
+            ranges=ranges,
+        )
+
+        self.merge_worker.moveToThread(self.merge_thread)
+        self.merge_thread.started.connect(self.merge_worker.run)
+        self.merge_worker.progress.connect(self.delete_progress)
+        self.merge_worker.finished.connect(self.delete_succeeded)
+        self.merge_worker.failed.connect(self.delete_failed)
+        self.merge_worker.cancelled.connect(self.delete_cancelled)
+
+        self.merge_worker.finished.connect(self.merge_thread.quit)
+        self.merge_worker.failed.connect(self.merge_thread.quit)
+        self.merge_worker.cancelled.connect(self.merge_thread.quit)
+
+        self.merge_worker.finished.connect(self.merge_worker.deleteLater)
+        self.merge_worker.failed.connect(self.merge_worker.deleteLater)
+        self.merge_worker.cancelled.connect(self.merge_worker.deleteLater)
+
+        self.merge_thread.finished.connect(self.merge_thread.deleteLater)
+        self.merge_thread.finished.connect(self.merge_finished)
+
+        self.merge_thread.start()
+
+    def delete_progress(self, current, total, pdf_file):
+        self.progress_bar.setMaximum(total)
+        self.progress_bar.setValue(current)
+        self.status_label.setText(
+            f"Deleting pages from {Path(pdf_file).name} "
+            f"({current} of {total})"
+        )
+
+    def delete_succeeded(self, result):
+        self.progress_bar.setValue(self.progress_bar.maximum())
+        self.status_label.setText("Page deletion completed successfully.")
+
+        output = result.outputs[0] if result.outputs else ""
+
+        QMessageBox.information(
+            self,
+            "Page Deletion Complete",
+            f"Pages deleted successfully.\n\n"
+            f"Pages processed: {result.pages_processed}\n"
+            f"Output: {output}"
+        )
+
+    def delete_failed(self, error_message, current_file):
+        self.status_label.setText("Page deletion failed.")
+        self.progress_bar.setValue(0)
+
+        file_name = Path(current_file).name if current_file else "PDF"
+
+        QMessageBox.critical(
+            self,
+            "Page Deletion Failed",
+            f"Could not delete pages from:\n{file_name}\n\n"
+            f"Reason:\n{error_message}"
+        )
+
+    def delete_cancelled(self):
+        self.status_label.setText("Page deletion cancelled.")
+        self.progress_bar.setValue(0)
+
     def split_progress(self, current, total, output_file):
         self.progress_bar.setMaximum(total)
         self.progress_bar.setValue(current)
@@ -1126,6 +1265,8 @@ class MainWindow(QMainWindow):
         self.rotate_button.setEnabled(enabled)
         self.rotate_ranges_input.setEnabled(enabled)
         self.rotate_degrees.setEnabled(enabled)
+        self.delete_button.setEnabled(enabled)
+        self.delete_ranges_input.setEnabled(enabled)
         self.file_list.setEnabled(enabled)
         self.cancel_button.setEnabled(merging)
 
