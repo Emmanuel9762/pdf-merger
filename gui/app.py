@@ -625,14 +625,28 @@ class MainWindow(QMainWindow):
         failure_slot,
         cancelled_slot,
     ):
-        self._start_operation_worker(
-             QThread()
-                    self.merge_worker = worker,
-            self.split_progress,
-            self.split_succeeded,
-            self.split_failed,
-            self.split_cancelled,
-        )
+        self.merge_thread = QThread()
+        self.merge_worker = worker
+
+        self.merge_worker.moveToThread(self.merge_thread)
+        self.merge_thread.started.connect(self.merge_worker.run)
+
+        self.merge_worker.progress.connect(progress_slot)
+        self.merge_worker.finished.connect(success_slot)
+        self.merge_worker.failed.connect(failure_slot)
+        self.merge_worker.cancelled.connect(cancelled_slot)
+
+        for signal in (
+            self.merge_worker.finished,
+            self.merge_worker.failed,
+            self.merge_worker.cancelled,
+        ):
+            signal.connect(self.merge_thread.quit)
+            signal.connect(self.merge_worker.deleteLater)
+
+        self.merge_thread.finished.connect(self.merge_thread.deleteLater)
+        self.merge_thread.finished.connect(self.merge_finished)
+        self.merge_thread.start()
 
     def start_merge(self):
         pdf_files = self.get_ordered_files()
@@ -681,6 +695,7 @@ class MainWindow(QMainWindow):
             self.merge_cancelled,
         )
 
+
     def start_split(self):
         item = self.file_list.currentItem()
 
@@ -719,17 +734,17 @@ class MainWindow(QMainWindow):
         self.status_label.setText(f"Preparing to split {pdf_file.name}...")
 
         self._start_operation_worker(
-             QThread()
-                    self.merge_worker = SplitWorker(
-                        pdf_file,
-                        Path(output_dir),
-                        ranges=ranges,
-                    ),
-            self.extract_progress,
-            self.extract_succeeded,
-            self.extract_failed,
-            self.extract_cancelled,
+            SplitWorker(
+                pdf_file,
+                Path(output_dir),
+                ranges=ranges,
+            ),
+            self.split_progress,
+            self.split_succeeded,
+            self.split_failed,
+            self.split_cancelled,
         )
+
 
     def start_extract(self):
         item = self.file_list.currentItem()
@@ -786,17 +801,17 @@ class MainWindow(QMainWindow):
         )
 
         self._start_operation_worker(
-             QThread()
-                    self.merge_worker = ExtractWorker(
-                        pdf_file,
-                        output_path,
-                        ranges=ranges,
-                    ),
-            self.rotate_progress,
-            self.rotate_succeeded,
-            self.rotate_failed,
-            self.rotate_cancelled,
+            ExtractWorker(
+                pdf_file,
+                output_path,
+                ranges=ranges,
+            ),
+            self.extract_progress,
+            self.extract_succeeded,
+            self.extract_failed,
+            self.extract_cancelled,
         )
+
 
     def extract_progress(self, current, total, pdf_file):
         self.progress_bar.setMaximum(total)
@@ -886,18 +901,18 @@ class MainWindow(QMainWindow):
         )
 
         self._start_operation_worker(
-             QThread()
-                    self.merge_worker = RotateWorker(
-                        pdf_file,
-                        output_path,
-                        degrees=degrees,
-                        ranges=ranges,
-                    ),
-            self.delete_progress,
-            self.delete_succeeded,
-            self.delete_failed,
-            self.delete_cancelled,
+            RotateWorker(
+                pdf_file,
+                output_path,
+                degrees=degrees,
+                ranges=ranges,
+            ),
+            self.rotate_progress,
+            self.rotate_succeeded,
+            self.rotate_failed,
+            self.rotate_cancelled,
         )
+
 
     def rotate_progress(self, current, total, pdf_file):
         self.progress_bar.setMaximum(total)
@@ -992,32 +1007,18 @@ class MainWindow(QMainWindow):
             f"Preparing to delete pages from {pdf_file.name}..."
         )
 
-        self.merge_thread = QThread()
-        self.merge_worker = DeleteWorker(
-            pdf_file,
-            output_path,
-            ranges=ranges,
+        self._start_operation_worker(
+            DeleteWorker(
+                pdf_file,
+                output_path,
+                ranges=ranges,
+            ),
+            self.delete_progress,
+            self.delete_succeeded,
+            self.delete_failed,
+            self.delete_cancelled,
         )
 
-        self.merge_worker.moveToThread(self.merge_thread)
-        self.merge_thread.started.connect(self.merge_worker.run)
-        self.merge_worker.progress.connect(self.delete_progress)
-        self.merge_worker.finished.connect(self.delete_succeeded)
-        self.merge_worker.failed.connect(self.delete_failed)
-        self.merge_worker.cancelled.connect(self.delete_cancelled)
-
-        self.merge_worker.finished.connect(self.merge_thread.quit)
-        self.merge_worker.failed.connect(self.merge_thread.quit)
-        self.merge_worker.cancelled.connect(self.merge_thread.quit)
-
-        self.merge_worker.finished.connect(self.merge_worker.deleteLater)
-        self.merge_worker.failed.connect(self.merge_worker.deleteLater)
-        self.merge_worker.cancelled.connect(self.merge_worker.deleteLater)
-
-        self.merge_thread.finished.connect(self.merge_thread.deleteLater)
-        self.merge_thread.finished.connect(self.merge_finished)
-
-        self.merge_thread.start()
 
     def delete_progress(self, current, total, pdf_file):
         self.progress_bar.setMaximum(total)
