@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from pdf_merger import get_pdf_info, parse_page_ranges, resolve_output_path
-from gui.worker import DeleteWorker, ExtractWorker, MergeWorker, RotateWorker, SplitWorker
+from gui.worker import DeleteWorker, ExtractWorker, MergeWorker, ReorderWorker, RotateWorker, SplitWorker
 
 
 class PDFListWidget(QListWidget):
@@ -433,6 +433,23 @@ class MainWindow(QMainWindow):
         delete_layout.addWidget(self.delete_ranges_input)
         delete_layout.addWidget(self.delete_button)
 
+        reorder_layout = QHBoxLayout()
+
+        self.reorder_order_input = QLineEdit()
+        self.reorder_order_input.setPlaceholderText(
+            "Page order, e.g. 4, 2, 1, 3"
+        )
+        self.reorder_order_input.setToolTip(
+            "Enter every page number exactly once, separated by commas."
+        )
+
+        self.reorder_button = QPushButton("Reorder Pages")
+        self.reorder_button.setMinimumHeight(40)
+        self.reorder_button.clicked.connect(self.start_reorder)
+
+        reorder_layout.addWidget(self.reorder_order_input)
+        reorder_layout.addWidget(self.reorder_button)
+
         self.operation_tabs = QTabWidget()
         self.operation_tabs.setDocumentMode(True)
 
@@ -462,11 +479,17 @@ class MainWindow(QMainWindow):
         delete_tab_layout.setContentsMargins(10, 10, 10, 10)
         delete_tab_layout.addLayout(delete_layout)
 
+        reorder_tab = QWidget()
+        reorder_tab_layout = QVBoxLayout(reorder_tab)
+        reorder_tab_layout.setContentsMargins(10, 10, 10, 10)
+        reorder_tab_layout.addLayout(reorder_layout)
+
         self.operation_tabs.addTab(merge_tab, "Merge")
         self.operation_tabs.addTab(split_tab, "Split")
         self.operation_tabs.addTab(extract_tab, "Extract")
         self.operation_tabs.addTab(rotate_tab, "Rotate")
         self.operation_tabs.addTab(delete_tab, "Delete")
+        self.operation_tabs.addTab(reorder_tab, "Reorder")
 
         main_layout.addWidget(self.operation_tabs)
 
@@ -1091,6 +1114,120 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Page deletion cancelled.")
         self.progress_bar.setValue(0)
 
+    def start_reorder(self):
+        item = self.file_list.currentItem()
+
+        if item is None:
+            QMessageBox.warning(
+                self,
+                "No PDF Selected",
+                "Select one PDF to reorder."
+            )
+            return
+
+        pdf_file = Path(item.data(Qt.UserRole))
+        raw_order = self.reorder_order_input.text().strip()
+
+        if not raw_order:
+            QMessageBox.warning(
+                self,
+                "Page Order Required",
+                "Enter the complete page order, for example: 4, 2, 1, 3."
+            )
+            return
+
+        try:
+            order = [int(part.strip()) for part in raw_order.split(",")]
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Invalid Page Order",
+                "Use comma-separated page numbers, for example: 4, 2, 1, 3."
+            )
+            return
+
+        if any(page < 1 for page in order):
+            QMessageBox.warning(
+                self,
+                "Invalid Page Order",
+                "Page numbers must be positive integers."
+            )
+            return
+
+        default_output = Path("output") / f"{pdf_file.stem}-reordered.pdf"
+        output_file, _ = QFileDialog.getSaveFileName(
+            self,
+            "Choose reordered PDF output",
+            str(default_output),
+            "PDF Files (*.pdf)",
+        )
+
+        if not output_file:
+            return
+
+        output_path = Path(output_file)
+
+        if output_path.suffix.lower() != ".pdf":
+            output_path = output_path.with_suffix(".pdf")
+
+        self.set_merge_state(True)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setValue(0)
+        self.status_label.setText(
+            f"Preparing to reorder {pdf_file.name}..."
+        )
+
+        self._start_operation_worker(
+            ReorderWorker(
+                pdf_file,
+                output_path,
+                order=order,
+            ),
+            self.reorder_progress,
+            self.reorder_succeeded,
+            self.reorder_failed,
+            self.reorder_cancelled,
+        )
+
+    def reorder_progress(self, current, total, pdf_file):
+        self.progress_bar.setMaximum(total)
+        self.progress_bar.setValue(current)
+        self.status_label.setText(
+            f"Reordering pages in {Path(pdf_file).name} "
+            f"({current} of {total})"
+        )
+
+    def reorder_succeeded(self, result):
+        self.progress_bar.setValue(self.progress_bar.maximum())
+        self.status_label.setText("Reordering completed successfully.")
+
+        output = result.outputs[0] if result.outputs else ""
+
+        QMessageBox.information(
+            self,
+            "Reorder Complete",
+            f"Pages reordered successfully.\n\n"
+            f"Pages processed: {result.pages_processed}\n"
+            f"Output: {output}"
+        )
+
+    def reorder_failed(self, error_message, current_file):
+        self.status_label.setText("Reordering failed.")
+        self.progress_bar.setValue(0)
+
+        file_name = Path(current_file).name if current_file else "PDF"
+
+        QMessageBox.critical(
+            self,
+            "Reorder Failed",
+            f"Could not reorder:\n{file_name}\n\n"
+            f"Reason:\n{error_message}"
+        )
+
+    def reorder_cancelled(self):
+        self.status_label.setText("Reordering cancelled.")
+        self.progress_bar.setValue(0)
+
     def split_progress(self, current, total, output_file):
         self.progress_bar.setMaximum(total)
         self.progress_bar.setValue(current)
@@ -1220,6 +1357,8 @@ class MainWindow(QMainWindow):
         self.operation_tabs.setEnabled(enabled)
         self.delete_button.setEnabled(enabled)
         self.delete_ranges_input.setEnabled(enabled)
+        self.reorder_button.setEnabled(enabled)
+        self.reorder_order_input.setEnabled(enabled)
         self.file_list.setEnabled(enabled)
         self.cancel_button.setEnabled(merging)
 

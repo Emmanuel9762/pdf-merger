@@ -27,11 +27,11 @@ def window(qapp):
 
 
 def test_operation_workspace_has_expected_tabs(window):
-    assert window.operation_tabs.count() == 5
+    assert window.operation_tabs.count() == 6
     assert [
         window.operation_tabs.tabText(index)
         for index in range(window.operation_tabs.count())
-    ] == ["Merge", "Split", "Extract", "Rotate", "Delete"]
+    ] == ["Merge", "Split", "Extract", "Rotate", "Delete", "Reorder"]
 
 
 def test_operation_workspace_defaults_to_merge(window):
