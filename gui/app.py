@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QLineEdit,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -304,7 +305,7 @@ class MainWindow(QMainWindow):
             self.choose_output_button
         )
 
-        main_layout.addLayout(output_layout)
+        self.merge_output_layout = output_layout
 
         self.status_label = QLabel("Ready.")
         self.status_label.setStyleSheet(
@@ -357,8 +358,6 @@ class MainWindow(QMainWindow):
         )
         self.merge_button.clicked.connect(self.start_merge)
 
-        main_layout.addWidget(self.merge_button)
-
         split_layout = QHBoxLayout()
         self.split_ranges_input = QLineEdit()
         self.split_ranges_input.setPlaceholderText(
@@ -375,7 +374,6 @@ class MainWindow(QMainWindow):
 
         split_layout.addWidget(self.split_ranges_input)
         split_layout.addWidget(self.split_button)
-        main_layout.addLayout(split_layout)
 
         extract_layout = QHBoxLayout()
         self.extract_ranges_input = QLineEdit()
@@ -393,7 +391,6 @@ class MainWindow(QMainWindow):
 
         extract_layout.addWidget(self.extract_ranges_input)
         extract_layout.addWidget(self.extract_button)
-        main_layout.addLayout(extract_layout)
 
         rotate_layout = QHBoxLayout()
 
@@ -417,7 +414,6 @@ class MainWindow(QMainWindow):
         rotate_layout.addWidget(self.rotate_ranges_input)
         rotate_layout.addWidget(self.rotate_degrees)
         rotate_layout.addWidget(self.rotate_button)
-        main_layout.addLayout(rotate_layout)
 
         delete_layout = QHBoxLayout()
 
@@ -436,7 +432,43 @@ class MainWindow(QMainWindow):
 
         delete_layout.addWidget(self.delete_ranges_input)
         delete_layout.addWidget(self.delete_button)
-        main_layout.addLayout(delete_layout)
+
+        self.operation_tabs = QTabWidget()
+        self.operation_tabs.setDocumentMode(True)
+
+        merge_tab = QWidget()
+        merge_tab_layout = QVBoxLayout(merge_tab)
+        merge_tab_layout.setContentsMargins(10, 10, 10, 10)
+        merge_tab_layout.addLayout(self.merge_output_layout)
+        merge_tab_layout.addWidget(self.merge_button)
+
+        split_tab = QWidget()
+        split_tab_layout = QVBoxLayout(split_tab)
+        split_tab_layout.setContentsMargins(10, 10, 10, 10)
+        split_tab_layout.addLayout(split_layout)
+
+        extract_tab = QWidget()
+        extract_tab_layout = QVBoxLayout(extract_tab)
+        extract_tab_layout.setContentsMargins(10, 10, 10, 10)
+        extract_tab_layout.addLayout(extract_layout)
+
+        rotate_tab = QWidget()
+        rotate_tab_layout = QVBoxLayout(rotate_tab)
+        rotate_tab_layout.setContentsMargins(10, 10, 10, 10)
+        rotate_tab_layout.addLayout(rotate_layout)
+
+        delete_tab = QWidget()
+        delete_tab_layout = QVBoxLayout(delete_tab)
+        delete_tab_layout.setContentsMargins(10, 10, 10, 10)
+        delete_tab_layout.addLayout(delete_layout)
+
+        self.operation_tabs.addTab(merge_tab, "Merge")
+        self.operation_tabs.addTab(split_tab, "Split")
+        self.operation_tabs.addTab(extract_tab, "Extract")
+        self.operation_tabs.addTab(rotate_tab, "Rotate")
+        self.operation_tabs.addTab(delete_tab, "Delete")
+
+        main_layout.addWidget(self.operation_tabs)
 
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.setMinimumHeight(40)
@@ -1185,6 +1217,7 @@ class MainWindow(QMainWindow):
         self.rotate_button.setEnabled(enabled)
         self.rotate_ranges_input.setEnabled(enabled)
         self.rotate_degrees.setEnabled(enabled)
+        self.operation_tabs.setEnabled(enabled)
         self.delete_button.setEnabled(enabled)
         self.delete_ranges_input.setEnabled(enabled)
         self.file_list.setEnabled(enabled)
