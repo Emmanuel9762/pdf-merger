@@ -84,8 +84,8 @@ class MainWindow(QMainWindow):
 
         self.pdf_files = set()
 
-        self.merge_thread = None
-        self.merge_worker = None
+        self.operation_thread = None
+        self.operation_worker = None
 
         self.apply_styles()
         self.build_ui()
@@ -521,7 +521,7 @@ class MainWindow(QMainWindow):
             }
             """
         )
-        self.cancel_button.clicked.connect(self.cancel_merge)
+        self.cancel_button.clicked.connect(self.cancel_operation)
 
         main_layout.addWidget(self.cancel_button)
 
@@ -680,28 +680,28 @@ class MainWindow(QMainWindow):
         failure_slot,
         cancelled_slot,
     ):
-        self.merge_thread = QThread()
-        self.merge_worker = worker
+        self.operation_thread = QThread()
+        self.operation_worker = worker
 
-        self.merge_worker.moveToThread(self.merge_thread)
-        self.merge_thread.started.connect(self.merge_worker.run)
+        self.operation_worker.moveToThread(self.operation_thread)
+        self.operation_thread.started.connect(self.operation_worker.run)
 
-        self.merge_worker.progress.connect(progress_slot)
-        self.merge_worker.finished.connect(success_slot)
-        self.merge_worker.failed.connect(failure_slot)
-        self.merge_worker.cancelled.connect(cancelled_slot)
+        self.operation_worker.progress.connect(progress_slot)
+        self.operation_worker.finished.connect(success_slot)
+        self.operation_worker.failed.connect(failure_slot)
+        self.operation_worker.cancelled.connect(cancelled_slot)
 
         for signal in (
-            self.merge_worker.finished,
-            self.merge_worker.failed,
-            self.merge_worker.cancelled,
+            self.operation_worker.finished,
+            self.operation_worker.failed,
+            self.operation_worker.cancelled,
         ):
-            signal.connect(self.merge_thread.quit)
-            signal.connect(self.merge_worker.deleteLater)
+            signal.connect(self.operation_thread.quit)
+            signal.connect(self.operation_worker.deleteLater)
 
-        self.merge_thread.finished.connect(self.merge_thread.deleteLater)
-        self.merge_thread.finished.connect(self.merge_finished)
-        self.merge_thread.start()
+        self.operation_thread.finished.connect(self.operation_thread.deleteLater)
+        self.operation_thread.finished.connect(self.operation_finished)
+        self.operation_thread.start()
 
     def start_merge(self):
         pdf_files = self.get_ordered_files()
@@ -729,7 +729,7 @@ class MainWindow(QMainWindow):
             if result != QMessageBox.Yes:
                 return
 
-        self.set_merge_state(True)
+        self.set_operation_state(True)
 
         self.progress_bar.setRange(
             0,
@@ -783,7 +783,7 @@ class MainWindow(QMainWindow):
         if not output_dir:
             return
 
-        self.set_merge_state(True)
+        self.set_operation_state(True)
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setValue(0)
         self.status_label.setText(f"Preparing to split {pdf_file.name}...")
@@ -848,7 +848,7 @@ class MainWindow(QMainWindow):
         if output_path.suffix.lower() != ".pdf":
             output_path = output_path.with_suffix(".pdf")
 
-        self.set_merge_state(True)
+        self.set_operation_state(True)
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setValue(0)
         self.status_label.setText(
@@ -948,7 +948,7 @@ class MainWindow(QMainWindow):
         if output_path.suffix.lower() != ".pdf":
             output_path = output_path.with_suffix(".pdf")
 
-        self.set_merge_state(True)
+        self.set_operation_state(True)
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setValue(0)
         self.status_label.setText(
@@ -1055,7 +1055,7 @@ class MainWindow(QMainWindow):
         if output_path.suffix.lower() != ".pdf":
             output_path = output_path.with_suffix(".pdf")
 
-        self.set_merge_state(True)
+        self.set_operation_state(True)
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setValue(0)
         self.status_label.setText(
@@ -1170,7 +1170,7 @@ class MainWindow(QMainWindow):
         if output_path.suffix.lower() != ".pdf":
             output_path = output_path.with_suffix(".pdf")
 
-        self.set_merge_state(True)
+        self.set_operation_state(True)
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setValue(0)
         self.status_label.setText(
@@ -1321,26 +1321,26 @@ class MainWindow(QMainWindow):
             message
         )
 
-    def cancel_merge(self):
-        if self.merge_worker is None:
+    def cancel_operation(self):
+        if self.operation_worker is None:
             return
 
         self.cancel_button.setEnabled(False)
         self.status_label.setText("Cancelling operation...")
-        self.merge_worker.cancel()
+        self.operation_worker.cancel()
 
     def merge_cancelled(self):
         self.status_label.setText("Merge cancelled.")
         self.progress_bar.setValue(0)
 
-    def merge_finished(self):
-        self.set_merge_state(False)
+    def operation_finished(self):
+        self.set_operation_state(False)
 
-        self.merge_thread = None
-        self.merge_worker = None
+        self.operation_thread = None
+        self.operation_worker = None
 
-    def set_merge_state(self, merging):
-        enabled = not merging
+    def set_operation_state(self, running):
+        enabled = not running
 
         self.add_button.setEnabled(enabled)
         self.remove_button.setEnabled(enabled)
@@ -1360,7 +1360,7 @@ class MainWindow(QMainWindow):
         self.reorder_button.setEnabled(enabled)
         self.reorder_order_input.setEnabled(enabled)
         self.file_list.setEnabled(enabled)
-        self.cancel_button.setEnabled(merging)
+        self.cancel_button.setEnabled(running)
 
     def format_size(self, size_bytes):
         if size_bytes < 1024:
@@ -1375,11 +1375,11 @@ class MainWindow(QMainWindow):
         return f"{size_bytes / (1024 ** 3):.1f} GB"
 
     def closeEvent(self, event):
-        if self.merge_thread and self.merge_thread.isRunning():
+        if self.operation_thread and self.operation_thread.isRunning():
             QMessageBox.warning(
                 self,
-                "Merge In Progress",
-                "Please wait for the merge to finish."
+                "Operation In Progress",
+                "Please wait for the current operation to finish or cancel it."
             )
             event.ignore()
             return

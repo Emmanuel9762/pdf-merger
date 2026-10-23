@@ -80,7 +80,7 @@ def test_initial_gui_state(window):
 
 
 def test_merge_state_disables_controls(window):
-    window.set_merge_state(True)
+    window.set_operation_state(True)
 
     assert not window.add_button.isEnabled()
     assert not window.remove_button.isEnabled()
@@ -94,8 +94,8 @@ def test_merge_state_disables_controls(window):
 
 
 def test_merge_state_restores_controls(window):
-    window.set_merge_state(True)
-    window.set_merge_state(False)
+    window.set_operation_state(True)
+    window.set_operation_state(False)
 
     assert window.add_button.isEnabled()
     assert window.remove_button.isEnabled()
@@ -118,8 +118,8 @@ def test_close_event_is_ignored_during_merge(window, monkeypatch):
         fake_warning,
     )
 
-    window.merge_thread = QThread()
-    window.merge_thread.start()
+    window.operation_thread = QThread()
+    window.operation_thread.start()
 
     event = QCloseEvent()
 
@@ -128,8 +128,8 @@ def test_close_event_is_ignored_during_merge(window, monkeypatch):
     assert warning_shown
     assert not event.isAccepted()
 
-    window.merge_thread.quit()
-    window.merge_thread.wait()
+    window.operation_thread.quit()
+    window.operation_thread.wait()
 
 
 def test_close_event_is_accepted_when_no_merge_is_running(window):
@@ -585,10 +585,10 @@ def test_merge_failed_updates_status_and_shows_error_details(window, monkeypatch
 
 def test_cancel_merge_requests_worker_cancellation(window):
     worker = MergeWorker([Path("input/a.pdf")], Path("output/merged.pdf"))
-    window.merge_worker = worker
+    window.operation_worker = worker
     window.cancel_button.setEnabled(True)
 
-    window.cancel_merge()
+    window.cancel_operation()
 
     assert not window.cancel_button.isEnabled()
     assert window.status_label.text() == "Cancelling operation..."
@@ -634,13 +634,13 @@ def test_start_merge_runs_worker_and_restores_gui_state(
 
     window.start_merge()
 
-    assert window.merge_thread is not None
-    assert window.merge_worker is not None
+    assert window.operation_thread is not None
+    assert window.operation_worker is not None
     assert not window.merge_button.isEnabled()
     assert not window.file_list.isEnabled()
 
     completed = wait_for_condition(
-        lambda: window.merge_thread is None and window.merge_worker is None,
+        lambda: window.operation_thread is None and window.operation_worker is None,
         qapp,
     )
 
@@ -690,11 +690,11 @@ def test_start_merge_failure_lifecycle_restores_gui_state(
 
     window.start_merge()
 
-    assert window.merge_thread is not None
-    assert window.merge_worker is not None
+    assert window.operation_thread is not None
+    assert window.operation_worker is not None
 
     completed = wait_for_condition(
-        lambda: window.merge_thread is None and window.merge_worker is None,
+        lambda: window.operation_thread is None and window.operation_worker is None,
         qapp,
     )
 
@@ -746,16 +746,16 @@ def test_start_merge_cancellation_lifecycle_restores_gui_state(
 
     window.start_merge()
 
-    assert window.merge_thread is not None
-    assert window.merge_worker is not None
+    assert window.operation_thread is not None
+    assert window.operation_worker is not None
     assert not window.merge_button.isEnabled()
     assert not window.file_list.isEnabled()
     assert window.cancel_button.isEnabled()
 
-    window.cancel_merge()
+    window.cancel_operation()
 
     completed = wait_for_condition(
-        lambda: window.merge_thread is None and window.merge_worker is None,
+        lambda: window.operation_thread is None and window.operation_worker is None,
         qapp,
     )
 

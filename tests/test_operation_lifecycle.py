@@ -73,7 +73,7 @@ def test_operation_worker_helper_wires_and_cleans_up(window):
     )
 
     completed = wait_for_condition(
-        lambda: window.merge_thread is None and window.merge_worker is None
+        lambda: window.operation_thread is None and window.operation_worker is None
     )
 
     assert completed is True
@@ -94,9 +94,9 @@ def test_operation_worker_helper_uses_shared_thread_state(window):
         lambda: None,
     )
 
-    assert window.merge_thread is not None
-    assert window.merge_worker is worker
+    assert window.operation_thread is not None
+    assert window.operation_worker is worker
 
     assert wait_for_condition(
-        lambda: window.merge_thread is None and window.merge_worker is None
+        lambda: window.operation_thread is None and window.operation_worker is None
     )
