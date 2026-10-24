@@ -22,6 +22,7 @@ from .pdf_info import (
 from .splitter import split_pdf
 from .extractor import extract_pages
 from .rotator import rotate_pages
-from .deleter import delete_pages\nfrom .reorderer import reorder_pages
+from .deleter import delete_pages
+from .reorderer import reorder_pages
 
 from .page_ranges import parse_page_range, parse_page_ranges
