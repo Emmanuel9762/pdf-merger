@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("PDF Merger")
+        self.setWindowTitle("PDF Toolkit")
         self.resize(700, 600)
 
         self.pdf_files = set()
@@ -192,7 +192,7 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(24, 22, 24, 22)
         main_layout.setSpacing(14)
 
-        title = QLabel("PDF Merger")
+        title = QLabel("PDF Toolkit")
         title.setStyleSheet(
             """
             QLabel {
@@ -204,7 +204,7 @@ class MainWindow(QMainWindow):
         )
 
         subtitle = QLabel(
-            "Combine PDF files in the order you choose."
+            "Merge, split, extract, rotate, delete, and reorder PDF pages."
         )
         subtitle.setStyleSheet(
             """

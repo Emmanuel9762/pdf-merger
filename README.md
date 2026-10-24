@@ -1,204 +1,123 @@
-# PDF Merger
+# PDF Toolkit (PDF Merger)
 
-A Python desktop application and CLI tool for merging PDF files.
+A Python/PySide6 desktop application and CLI for organizing PDF documents. The
+repository and installable package retain the `pdf-merger` name for compatibility.
 
 ## Features
 
-- Merge multiple PDF files into a single document
-- Discover PDFs from an input directory
-- Select PDFs directly from the GUI
-- Drag and drop PDF files into the GUI
-- Reorder PDFs before merging
-- Display PDF page counts and file sizes
-- Choose the output filename and location
-- Prevent accidental output overwrites
-- Run merges in a background worker
-- Display merge progress
-- Cancel an active merge
-- Clean up partial output after cancellation or failure
-- Validate merge requests
-- CLI support for scripted and terminal-based workflows
-- Automated test coverage
-- PyInstaller packaging for a standalone Linux executable
+- **Merge:** combine multiple PDFs in a chosen file order.
+- **Split:** create one PDF per page or one per specified page range.
+- **Extract:** combine selected pages/ranges into one new PDF, preserving the
+  requested order (including repeated pages).
+- **Rotate:** rotate all pages or selected pages by 90°, 180°, or 270°.
+- **Delete:** remove selected pages, keeping the remaining pages in order.
+  Removing every page is rejected.
+- **Reorder:** supply a complete one-based page permutation, with every page
+  included exactly once.
+
+The GUI provides six operation tabs, drag-and-drop file selection, file metadata,
+progress, cancellation, and background workers. Merge supports confirmed
+overwrite; the other operations refuse to overwrite existing output files.
+Operations use staged output publication and clean up temporary files on
+cancellation or failure.
 
 ## Requirements
 
 - Python 3.12+
-- pypdf
-- PySide6
+- Linux desktop for the currently supported standalone executable
+- Runtime: `pypdf` and `PySide6`
+- Development: `pytest`, `PyInstaller`, and other packages in
+  `requirements-dev.txt`
 
-Development additionally requires:
-
-- pytest
-- PyInstaller
-
-## Installation
-
-Clone the repository and create a virtual environment:
+## Install
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-In fish, use `source .venv/bin/activate.fish` instead. If your existing
-environment is named `venv`, substitute `venv` for `.venv`. You can also
-run `venv/bin/python -m pytest -q` directly without activating it.
-Install the application dependencies:
-
-```
-python3 -m pip install -r requirements.txt
-```
-For development:
-
-```
 python3 -m pip install -r requirements-dev.txt
 ```
-The project can also be installed in editable mode:
 
-```
-python3 -m pip install -e .
-```
+On fish, activate with `source .venv/bin/activate.fish`. For runtime-only
+installation, use `requirements.txt` instead.
 
-## Running the GUI
-From the project directory:
+## Desktop GUI
 
-```
+```bash
 python3 -m gui.main
 ```
-Or:
 
-```
-python3 gui_launcher.py
-```
-When installed through `pyproject.toml`, the GUI can also be launched with:
+Alternative entry points: `python3 gui_launcher.py`, or `pdf-merger` after
+installing the project with `python3 -m pip install -e .`.
 
-```
-pdf-merger
-```
+Add PDFs to the file list. Merge uses the full ordered list; Split, Extract,
+Rotate, Delete, and Reorder use the selected PDF. All page numbers are
+**one-based**. Use comma-separated ranges in the GUI, e.g. `2-3, 5`. Reorder
+requires a complete comma-separated list, e.g. `4, 2, 1, 3` for a four-page
+document. Outputs are new PDF files; originals are not modified.
 
-## CLI Usage
-The CLI can merge PDFs from the default `input` directory:
+## CLI
 
-```
-python3 main.py
-```
-PDF files can also be supplied directly:
+Merge is the default command and retains the v0.1 CLI syntax:
 
-```
-python3 main.py file1.pdf file2.pdf file3.pdf
-```
-Specify an input directory:
-
-```
-python3 main.py --input input
-```
-Specify an output file:
-
-```
-python3 main.py --output output/merged.pdf
-```
-Specify the merge order:
-
-```
-python3 main.py --order 3 1 4 2
-```
-Arguments can be combined:
-
-```
-python3 main.py --input input --output output/merged.pdf --order 3 1 4 2
+```bash
+python3 main.py file1.pdf file2.pdf --output output/merged.pdf
+python3 main.py --input input --order 2 1 --output output/merged.pdf
 ```
 
-## Running Tests
-Run the complete test suite:
+The v0.2 page operations use subcommands:
 
+```bash
+python3 main.py split report.pdf --range 1-3 --range 4-6 --output output/parts
+python3 main.py extract report.pdf --range 4-5 --range 2 --output output/extracted.pdf
+python3 main.py rotate report.pdf --degrees 90 --range 2-3 --output output/rotated.pdf
+python3 main.py delete report.pdf --range 2-3 --range 5 --output output/trimmed.pdf
+python3 main.py reorder report.pdf --order 4 2 1 3 --output output/reordered.pdf
 ```
+
+For Split and Rotate, omit `--range` to operate on every page. For Extract
+and Delete, at least one range is required. The `--order` argument to Reorder
+must include each source page exactly once. Without `--output`, page
+operations create files in the `output/` directory (Split uses a subdirectory).
+See the individual command `--help` options for details.
+
+## Verification
+
+```bash
 python3 -m pytest -q
-```
-The project currently contains tests covering the merger, PDF metadata handling, GUI behavior, project configuration, packaging, release paths, and release automation.
-
-## Building the Standalone Executable
-PyInstaller is included in the development requirements.
-
-Build the Linux executable with:
-
-```
-.venv/bin/python -m PyInstaller --clean --noconfirm pdf_merger.spec
-```
-The executable is created at:
-
-```
-dist/pdf-merger
-```
-The generated `build/` and `dist/` directories are ignored by Git.
-
-Use the same virtual environment for installation, tests, and the build. A system
-Python without PyInstaller will report `No module named PyInstaller`, even when
-another environment has it installed.
-
-For a local release check, run the reusable preflight and tests before building:
-
-```
 python3 scripts/release_preflight.py
-python3 -m pytest -q
+git diff --check
 ```
 
-CI builds on Linux, validates Python distributions, checks that the packaged GUI
-stays running in offscreen mode, and uploads the executable with a SHA-256
-checksum. Tagged releases publish versioned Linux assets automatically. The
-offscreen check cannot confirm the window's visual appearance or compatibility
-with every Linux distribution.
+For a headless GUI smoke test, set `QT_QPA_PLATFORM=offscreen` before running
+GUI tests. For a release, follow the manual checks in
+[`V02_RELEASE_CHECKLIST.md`](V02_RELEASE_CHECKLIST.md).
 
-## Project Structure
+## Packaging
 
-```
-pdf-merger/
-├── gui/
-│   ├── app.py
-│   ├── main.py
-│   └── worker.py
-├── pdf_merger/
-│   ├── merger.py
-│   ├── output_path.py
-│   └── pdf_info.py
-├── scripts/
-│   └── release_preflight.py
-├── tests/
-│   ├── test_cli.py
-│   ├── test_gui.py
-│   ├── test_merge_contract.py
-│   ├── test_merger.py
-│   ├── test_output_path.py
-│   ├── test_packaging.py
-│   ├── test_pdf_info.py
-│   ├── test_project_config.py
-│   ├── test_release_preflight.py
-│   └── test_release_workflow.py
-├── input/
-├── main.py
-├── gui_launcher.py
-├── pdf_merger.spec
-├── pyproject.toml
-├── requirements.txt
-└── requirements-dev.txt
+The project includes `pdf_merger.spec` for PyInstaller:
+
+```bash
+python3 -m PyInstaller --clean --noconfirm pdf_merger.spec
 ```
 
-## Architecture
-The project separates PDF-processing logic from the GUI layer.
+The Linux executable is produced at `dist/pdf-merger`. Build it with the same
+Python environment used for dependencies and tests. CI includes Linux packaging
+checks; an offscreen process check does **not** replace visual desktop testing.
+Windows/macOS standalone builds are not yet configured.
 
-- `pdf_merger/` contains the reusable PDF processing functionality.
-- `gui/` contains the PySide6 desktop interface and background worker.
-- `main.py` provides the CLI interface.
-- `tests/` contains automated regression and configuration tests.
-- `pdf_merger.spec` defines the PyInstaller build.
-The GUI performs PDF merging in a background thread so the interface remains responsive during processing.
+## Project layout
 
-## Platform
-The application is developed and tested on Linux.
-
-The PyInstaller configuration currently targets a standalone Linux x86-64 executable. Cross-platform packaging has not yet been configured.
+- `pdf_merger/`: reusable core services and operation results
+- `gui/`: PySide6 interface and operation workers
+- `main.py`: CLI
+- `tests/`: core, CLI, GUI, and packaging regression tests
+- `scripts/release_preflight.py`: release metadata checks
+- `pdf_merger.spec`: Linux executable build configuration
 
 ## Status
-Version `0.2.0.dev0` is the active development line for the multifunctional PDF
-utility expansion. The stable 0.1.0 release remains documented in
-[RELEASE.md](RELEASE.md). The first v0.2 milestone adds a reusable operation
-result model and a safe PDF splitting service before GUI integration.
+
+Version `0.2.0.dev0` is the active development version, **not a published
+v0.2 release**. The stable 0.1.0 release remains documented in
+[`RELEASE.md`](RELEASE.md). The v0.2 feature set is implemented but must pass
+the full test suite, GUI smoke checks, and packaging checks before a release
+candidate can be declared.
