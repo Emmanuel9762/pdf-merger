@@ -39,7 +39,7 @@ def test_delete_range_input_accepts_multiple_ranges(window):
 
 
 def test_delete_controls_disable_during_operation(window):
-    window.set_merge_state(True)
+    window.set_operation_state(True)
 
     assert not window.delete_button.isEnabled()
     assert not window.delete_ranges_input.isEnabled()

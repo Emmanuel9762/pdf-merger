@@ -42,10 +42,10 @@ def test_operation_workspace_defaults_to_merge(window):
 
 
 def test_operation_workspace_disables_during_active_job(window):
-    window.set_merge_state(True)
+    window.set_operation_state(True)
 
     assert not window.operation_tabs.isEnabled()
 
-    window.set_merge_state(False)
+    window.set_operation_state(False)
 
     assert window.operation_tabs.isEnabled()

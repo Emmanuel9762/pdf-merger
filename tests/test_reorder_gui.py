@@ -29,7 +29,7 @@ def window(qapp):
 
 
 def test_reorder_controls_disable_during_operation(window):
-    window.set_merge_state(True)
+    window.set_operation_state(True)
 
     assert not window.reorder_button.isEnabled()
     assert not window.reorder_order_input.isEnabled()
